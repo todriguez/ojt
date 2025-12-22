@@ -33,12 +33,16 @@ interface AdminDashboardProps {
 }
 
 const StatusBadge = ({ status, reviewed }: { status: JobSheet['status']; reviewed: boolean }) => {
-  const colors = {
+  const colors: Record<JobSheet['status'], string> = {
     new: reviewed ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800',
-    reviewed: 'bg-yellow-100 text-yellow-800',
-    declined: 'bg-gray-100 text-gray-800',
+    reviewing: 'bg-yellow-100 text-yellow-800',
     quoted: 'bg-green-100 text-green-800',
+    accepted: 'bg-green-100 text-green-800',
+    rejected: 'bg-gray-100 text-gray-800',
+    scheduled: 'bg-blue-100 text-blue-800',
+    in_progress: 'bg-purple-100 text-purple-800',
     completed: 'bg-blue-100 text-blue-800',
+    cancelled: 'bg-gray-100 text-gray-800',
   };
 
   const displayStatus = status === 'new' && !reviewed ? 'Needs Review' :
