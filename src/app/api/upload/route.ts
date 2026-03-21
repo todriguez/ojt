@@ -4,6 +4,14 @@ import { getFirebaseStorage } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
+  // Upload feature gate — disabled by default for Sprint 5A
+  if (process.env.UPLOADS_ENABLED !== "true") {
+    return NextResponse.json(
+      { error: "File uploads are currently disabled" },
+      { status: 403 }
+    );
+  }
+
   try {
     const formData = await request.formData();
     const files = formData.getAll('photos') as File[];
