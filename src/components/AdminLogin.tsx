@@ -20,7 +20,18 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      const user = await signIn(email, password);
+      // Exchange Firebase ID token for server-side session cookie
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/v2/auth/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Server authentication failed');
+      }
       onLoginSuccess();
     } catch (error: any) {
       setError(error.message || 'Login failed. Please check your credentials.');

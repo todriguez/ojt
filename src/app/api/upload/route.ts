@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/lib/firebase';
+import { getFirebaseStorage } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
       // Create unique filename
       const fileName = `jobs/${jobId}/${uuidv4()}-${file.name}`;
-      const storageRef = ref(storage, fileName);
+      const storageRef = ref(getFirebaseStorage(), fileName);
 
       // Convert file to buffer
       const buffer = await file.arrayBuffer();

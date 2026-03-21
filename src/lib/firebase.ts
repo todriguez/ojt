@@ -1,7 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,12 +12,33 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Lazy singletons — initialized on first access, not at import time.
+// This prevents build failures when NEXT_PUBLIC_FIREBASE_* env vars aren't set.
+let _app: FirebaseApp | null = null;
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+function ensureApp(): FirebaseApp {
+  if (!_app) {
+    _app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  }
+  return _app;
+}
 
-export default app;
+export function getFirebaseAuth(): Auth {
+  if (!_auth) _auth = getAuth(ensureApp());
+  return _auth;
+}
+
+export function getFirebaseDb(): Firestore {
+  if (!_db) _db = getFirestore(ensureApp());
+  return _db;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!_storage) _storage = getStorage(ensureApp());
+  return _storage;
+}
+
+export default ensureApp;

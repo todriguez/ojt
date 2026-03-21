@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jobQueryService } from '@/lib/jobQueryService';
 import { Coordinates, SchedulingPreferences } from '@/types/job';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

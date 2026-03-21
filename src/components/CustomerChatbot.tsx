@@ -415,7 +415,7 @@ export default function CustomerChatbot() {
       'subcontract': 200
     };
 
-    let tier: JobSheet['estimate']['tier'] = 'skilled_handyman';
+    let tier: NonNullable<JobSheet['estimate']>['tier'] = 'skilled_handyman';
     let estimatedHours = { min: 2, max: 4 };
     let materialsEstimate = 100;
     let confidence: 'low' | 'medium' | 'high' = 'medium';

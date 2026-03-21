@@ -136,13 +136,13 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
     try {
       await updateJobDecision(
         firestoreId,
-        status || 'reviewed',
+        status || 'reviewing',
         decision
       );
 
       setJobs(prev => prev.map(job =>
         (job as any).firestoreId === firestoreId
-          ? { ...job, status: status || 'reviewed', decision, reviewed: true }
+          ? { ...job, status: status || 'reviewing', decision, reviewed: true }
           : job
       ));
     } catch (error) {
