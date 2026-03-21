@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1774012968223,
+      "tag": "0000_military_supernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774014641159,
+      "tag": "0001_yummy_the_executioner",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774021039543,
+      "tag": "0002_adorable_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774081274528,
+      "tag": "0003_mighty_mariko_yashida",
+      "breakpoints": true
+    }
+  ]
+}

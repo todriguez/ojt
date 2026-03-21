@@ -12,12 +12,14 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { getFirebaseDb, getFirebaseStorage } from './firebase';
 import { JobSheet } from '@/types/job';
 import { v4 as uuidv4 } from 'uuid';
 
-// Jobs collection reference
-const jobsCollection = collection(db, 'jobs');
+// Lazy jobs collection reference
+function getJobsCollection() {
+  return collection(getFirebaseDb(), 'jobs');
+}
 
 // Create a new job sheet with enhanced location intelligence
 export async function createJobSheet(jobData: Omit<JobSheet, 'jobId' | 'createdAt'>): Promise<string> {
@@ -32,13 +34,13 @@ export async function createJobSheet(jobData: Omit<JobSheet, 'jobId' | 'createdA
     createdAt: new Date().toISOString(),
   };
 
-  const docRef = await addDoc(jobsCollection, jobSheet);
+  const docRef = await addDoc(getJobsCollection(), jobSheet);
   return docRef.id;
 }
 
 // Get all job sheets
 export async function getAllJobSheets(): Promise<JobSheet[]> {
-  const q = query(jobsCollection, orderBy('createdAt', 'desc'));
+  const q = query(getJobsCollection(), orderBy('createdAt', 'desc'));
   const querySnapshot = await getDocs(q);
 
   return querySnapshot.docs.map(doc => ({
@@ -50,7 +52,7 @@ export async function getAllJobSheets(): Promise<JobSheet[]> {
 // Get jobs by status
 export async function getJobsByStatus(status: JobSheet['status']): Promise<JobSheet[]> {
   const q = query(
-    jobsCollection,
+    getJobsCollection(),
     where('status', '==', status),
     orderBy('createdAt', 'desc')
   );
@@ -70,7 +72,7 @@ export async function updateJobDecision(
   notes?: string,
   quotedAmount?: number
 ): Promise<void> {
-  const docRef = doc(jobsCollection, firestoreId);
+  const docRef = doc(getJobsCollection(), firestoreId);
   const updateData: any = {
     status,
     reviewed: true,
@@ -87,7 +89,7 @@ export async function updateJobDecision(
 // Upload photo to Firebase Storage
 export async function uploadPhoto(file: File, jobId: string): Promise<string> {
   const fileName = `jobs/${jobId}/${uuidv4()}-${file.name}`;
-  const storageRef = ref(storage, fileName);
+  const storageRef = ref(getFirebaseStorage(), fileName);
 
   const snapshot = await uploadBytes(storageRef, file);
   const downloadURL = await getDownloadURL(snapshot.ref);
@@ -107,7 +109,7 @@ export async function markJobAsReviewed(
   decision?: JobSheet['decision'],
   notes?: string
 ): Promise<void> {
-  const docRef = doc(jobsCollection, firestoreId);
+  const docRef = doc(getJobsCollection(), firestoreId);
   await updateDoc(docRef, {
     reviewed: true,
     decision,
@@ -118,7 +120,7 @@ export async function markJobAsReviewed(
 
 // Delete job sheet
 export async function deleteJobSheet(firestoreId: string): Promise<void> {
-  const docRef = doc(jobsCollection, firestoreId);
+  const docRef = doc(getJobsCollection(), firestoreId);
   await deleteDoc(docRef);
 }
 

@@ -127,6 +127,16 @@ export interface JobSheet {
     costEstimateConfidence?: number;
     flaggedForReview?: string; // Reason if AI thinks human review needed
     suggestedActions?: string[];
+    triageAssessment?: {
+      storyLevel: 'simple_repair' | 'standard_job' | 'complex_project';
+      quoteConfidence: 'can_quote' | 'needs_inspection' | 'unclear';
+      profitPotential: 'high' | 'medium' | 'low';
+      complexity: 'straightforward' | 'moderate' | 'difficult';
+      accessDifficulty: 'easy' | 'moderate' | 'difficult';
+      priorityScore: number; // 1-10, higher = more attractive to take
+      recommendation: string;
+      triageNotes: string;
+    };
   };
 
   // Original conversation
