@@ -3,22 +3,19 @@
  *
  * Direct email + password admin login.
  * Verifies against ADMIN_EMAIL + ADMIN_PASSWORD_HASH env vars,
- * creates a session, and sets an httpOnly JWT cookie.
+ * signs a JWT, and sets an httpOnly session cookie.
  *
- * No Firebase dependency.
+ * DB session + audit log are best-effort (skipped if no DATABASE_URL).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { verifyPassword } from "@/lib/auth/password";
 import { signJwt } from "@/lib/auth/jwt";
-import { createSession } from "@/lib/auth/session";
 import { setAdminSessionCookie } from "@/lib/auth/cookies";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { getConfig } from "@/lib/config";
 import { createLogger } from "@/lib/logger";
-import { getDb } from "@/lib/db/client";
-import { auditLog } from "@/lib/db/schema";
 
 const log = createLogger("auth.admin");
 
@@ -63,41 +60,56 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Sign JWT
-    const jwt = await signJwt(
-      { type: "admin", email, sessionId: "" },
-      "8h"
-    );
+    // Sign JWT — sessionId is optional (DB may not be available)
+    let sessionId = "no-db";
 
-    // Create session
-    const session = await createSession({
-      type: "admin",
-      actorId: email,
-      token: jwt,
-      ip,
-      userAgent: request.headers.get("user-agent") || undefined,
-    });
+    // Best-effort: create DB session + audit log if DATABASE_URL is set
+    if (process.env.DATABASE_URL) {
+      try {
+        const { createSession } = await import("@/lib/auth/session");
+        const { getDb } = await import("@/lib/db/client");
+        const { auditLog } = await import("@/lib/db/schema");
 
-    // Re-sign with actual sessionId
+        const jwt = await signJwt(
+          { type: "admin", email, sessionId: "" },
+          "8h"
+        );
+
+        const session = await createSession({
+          type: "admin",
+          actorId: email,
+          token: jwt,
+          ip,
+          userAgent: request.headers.get("user-agent") || undefined,
+        });
+        sessionId = session.id;
+
+        const db = await getDb();
+        await db.insert(auditLog).values({
+          actorType: "admin",
+          actorId: email,
+          action: "admin.login",
+          ipAddress: ip,
+        });
+      } catch (dbErr) {
+        log.warn(
+          { error: dbErr instanceof Error ? dbErr.message : String(dbErr) },
+          "admin.login.db_skipped"
+        );
+      }
+    }
+
+    // Sign final JWT with sessionId
     const finalJwt = await signJwt(
-      { type: "admin", email, sessionId: session.id },
+      { type: "admin", email, sessionId },
       "8h"
     );
-
-    // Audit log
-    const db = await getDb();
-    await db.insert(auditLog).values({
-      actorType: "admin",
-      actorId: email,
-      action: "admin.login",
-      ipAddress: ip,
-    });
 
     // Set cookie and respond
     const response = NextResponse.json({ success: true, email });
     setAdminSessionCookie(response, finalJwt);
 
-    log.info({ email, sessionId: session.id, ip }, "admin.login.success");
+    log.info({ email, sessionId, ip }, "admin.login.success");
     return response;
   } catch (err) {
     log.error(
