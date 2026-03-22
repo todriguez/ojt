@@ -48,6 +48,16 @@ interface Lead {
   suburbGroup: string | null;
   // Estimate
   romRange: { min: number; max: number } | null;
+  estimatedHours: { min: number; max: number } | null;
+  romConfidence: "low" | "medium" | "high" | null;
+  labourOnly: boolean | null;
+  materialsNote: string | null;
+  effortBandReason: string | null;
+  // Sub-scores
+  scopeClarity: number | null;
+  locationClarity: number | null;
+  estimateReadiness: number | null;
+  contactReadiness: number | null;
   // Customer
   customerName: string | null;
   customerPhone: string | null;
@@ -479,6 +489,21 @@ function LeadCard({
                 <span className="flex items-center gap-1">
                   <DollarSign className="w-3.5 h-3.5" />
                   ${lead.romRange.min}–${lead.romRange.max}
+                  {lead.labourOnly === false && <span className="text-xs text-gray-500">(all-in)</span>}
+                  {lead.labourOnly === true && <span className="text-xs text-gray-500">(labour)</span>}
+                  {lead.romConfidence && (
+                    <span className={`text-xs px-1 rounded ${
+                      lead.romConfidence === 'high' ? 'bg-green-50 text-green-700' :
+                      lead.romConfidence === 'low' ? 'bg-red-50 text-red-700' :
+                      'bg-yellow-50 text-yellow-700'
+                    }`}>{lead.romConfidence}</span>
+                  )}
+                </span>
+              )}
+              {lead.estimatedHours && (
+                <span className="flex items-center gap-1 text-gray-500">
+                  <Clock className="w-3.5 h-3.5" />
+                  {lead.estimatedHours.min}–{lead.estimatedHours.max} hrs
                 </span>
               )}
             </div>
@@ -633,6 +658,16 @@ function LeadDetailModal({
                 <ScoreBar score={lead.confidenceScore} label="Confidence" color="bg-gray-400" />
               )}
             </div>
+            {/* Sub-scores */}
+            {(lead.scopeClarity !== null || lead.locationClarity !== null) && (
+              <div className="mt-3 pt-3 border-t space-y-1">
+                <p className="text-xs font-medium text-gray-500 mb-1">Readiness Breakdown</p>
+                <ScoreBar score={lead.scopeClarity} label="Scope Clarity" color="bg-indigo-400" />
+                <ScoreBar score={lead.locationClarity} label="Location" color="bg-teal-400" />
+                <ScoreBar score={lead.estimateReadiness} label="Estimate Ready" color="bg-amber-400" />
+                <ScoreBar score={lead.contactReadiness} label="Contact" color="bg-pink-400" />
+              </div>
+            )}
             {lead.recommendationReason && (
               <p className="text-sm text-gray-500 mt-3 italic">{lead.recommendationReason}</p>
             )}
@@ -645,9 +680,21 @@ function LeadDetailModal({
               <Field label="Effort" value={lead.effortBand?.replace(/_/g, ' ')} />
               <Field label="Estimate Ack" value={lead.estimateAckStatus?.replace(/_/g, ' ')} />
               {lead.romRange && (
-                <Field label="ROM" value={`$${lead.romRange.min} – $${lead.romRange.max}`} />
+                <Field label="ROM" value={`$${lead.romRange.min} – $${lead.romRange.max}${lead.labourOnly === false ? ' (all-in)' : lead.labourOnly === true ? ' (labour)' : ''}`} />
+              )}
+              {lead.estimatedHours && (
+                <Field label="Hours" value={`${lead.estimatedHours.min}–${lead.estimatedHours.max} hrs`} />
+              )}
+              {lead.romConfidence && (
+                <Field label="ROM Confidence" value={lead.romConfidence} />
               )}
             </div>
+            {lead.effortBandReason && (
+              <p className="text-xs text-gray-400 mt-2">{lead.effortBandReason}</p>
+            )}
+            {lead.materialsNote && (
+              <p className="text-xs text-gray-500 mt-1 italic">{lead.materialsNote}</p>
+            )}
           </Section>
 
           {/* Conversation */}

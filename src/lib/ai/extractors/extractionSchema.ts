@@ -160,6 +160,12 @@ export const accumulatedJobStateSchema = z.object({
   // Recommendation
   recommendation: z.string().nullable().default(null),
   recommendationReason: z.string().nullable().default(null),
+
+  // Estimate enrichment (set when ROM is generated)
+  effortBandReason: z.string().nullable().default(null),
+  romConfidence: z.enum(["low", "medium", "high"]).nullable().default(null),
+  labourOnly: z.boolean().nullable().default(null),
+  materialsNote: z.string().nullable().default(null),
 });
 
 export type AccumulatedJobState = z.infer<typeof accumulatedJobStateSchema>;

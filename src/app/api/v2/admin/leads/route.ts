@@ -107,6 +107,8 @@ export async function GET(request: NextRequest) {
           effortBand: jobs.effortBand,
           estimatedCostMin: jobs.estimatedCostMin,
           estimatedCostMax: jobs.estimatedCostMax,
+          estimatedHoursMin: jobs.estimatedHoursMin,
+          estimatedHoursMax: jobs.estimatedHoursMax,
           // Denormalized scoring columns
           recommendation: jobs.recommendation,
           recommendationReason: jobs.recommendationReason,
@@ -170,6 +172,18 @@ export async function GET(request: NextRequest) {
         romRange: row.estimatedCostMin && row.estimatedCostMax
           ? { min: row.estimatedCostMin, max: row.estimatedCostMax }
           : null,
+        estimatedHours: row.estimatedHoursMin && row.estimatedHoursMax
+          ? { min: Number(row.estimatedHoursMin), max: Number(row.estimatedHoursMax) }
+          : null,
+        romConfidence: meta.romConfidence || null,
+        labourOnly: meta.labourOnly ?? null,
+        materialsNote: meta.materialsNote || null,
+        effortBandReason: meta.effortBandReason || null,
+        // Sub-scores
+        scopeClarity: meta.scopeClarity ?? null,
+        locationClarity: meta.locationClarity ?? null,
+        estimateReadiness: meta.estimateReadiness ?? null,
+        contactReadiness: meta.contactReadinessScore ?? null,
         // Customer
         customerName: meta.customerName || null,
         customerPhone: meta.customerPhone || null,

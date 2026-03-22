@@ -239,7 +239,7 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
     metadata: mergedState,
   };
 
-  if (extraction.jobType && !job.jobType) {
+  if (extraction.jobType) {
     jobUpdates.jobType = extraction.jobType;
   }
   if (extraction.scopeDescription && !job.descriptionRaw) {
@@ -249,8 +249,8 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
     jobUpdates.urgency = extraction.urgency;
   }
 
-  // Infer effort band
-  if (mergedState.scopeDescription && mergedState.jobType && !job.effortBand) {
+  // Infer effort band — always re-infer as scope clarifies (not just first time)
+  if (mergedState.scopeDescription && mergedState.jobType) {
     const effortResult = inferEffortBand({
       jobType: mergedState.jobType,
       subcategory: mergedState.jobSubcategory,
@@ -261,6 +261,7 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
     });
     if (effortResult.band !== "unknown") {
       jobUpdates.effortBand = effortResult.band;
+      mergedState.effortBandReason = effortResult.reason;
     }
   }
 
@@ -279,7 +280,7 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
     });
   }
 
-  // Save estimate record if presenting one
+  // Save estimate record if presenting one — also write back to jobs table
   if (action.type === "present_estimate") {
     const effortResult = inferEffortBand({
       jobType: mergedState.jobType,
@@ -305,6 +306,32 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
       labourOnly: romEstimate.labourOnly,
       materialsNote: romEstimate.materialsNote,
     });
+
+    // Write estimate data back to jobs table for fast admin queries
+    jobUpdates.estimatedCostMin = romEstimate.costMin;
+    jobUpdates.estimatedCostMax = romEstimate.costMax;
+    jobUpdates.estimatedHoursMin = String(romEstimate.hoursMin);
+    jobUpdates.estimatedHoursMax = String(romEstimate.hoursMax);
+    jobUpdates.effortBand = effortResult.band;
+
+    // Enrich metadata with estimate context
+    mergedState.effortBandReason = effortResult.reason;
+    mergedState.labourOnly = romEstimate.labourOnly;
+    mergedState.materialsNote = romEstimate.materialsNote;
+
+    // Compute ROM confidence from scope clarity
+    const sc = mergedState.scopeClarity;
+    const hasQuantity = !!mergedState.quantity;
+    if (sc >= 60 && hasQuantity && effortResult.band !== "multi_day") {
+      mergedState.romConfidence = "high";
+    } else if (sc < 35 || effortResult.band === "multi_day") {
+      mergedState.romConfidence = "low";
+    } else {
+      mergedState.romConfidence = "medium";
+    }
+
+    // Re-set metadata since we enriched it
+    jobUpdates.metadata = mergedState;
   }
 
   await db
