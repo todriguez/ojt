@@ -136,6 +136,56 @@ function accessBump(difficulty: string | null | undefined): number {
 }
 
 /**
+ * Cure/dry/set time bump — jobs that involve waiting (paint drying, concrete
+ * curing, adhesive setting, plaster drying, render curing) take significantly
+ * longer than active labour time suggests. A 3-hour paint job with 2 coats
+ * is really a full day. Concrete post footings means you can't rail up same day.
+ *
+ * This is the single biggest source of underestimation — the effort band
+ * only counts hands-on time, but the customer is paying for elapsed time.
+ */
+function cureTimeBump(jobType: string | null, searchText: string): number {
+  // Painting: 2 coats, drying, primer — always adds significant wait time
+  if (jobType === "painting" || /\bpaint|primer|undercoat|\bcoat|stain|lacquer|varnish/.test(searchText)) {
+    // Multiple coats explicitly mentioned = guaranteed wait time
+    if (/two coat|2 coat|three coat|3 coat|multiple coat|second coat/.test(searchText)) {
+      return 2; // Big bump — drying between coats is half the job time
+    }
+    // Any painting = at least 1 bump (prep + coat + likely second coat)
+    return 1;
+  }
+
+  // Concrete/cement: curing time, can't work on it same day
+  if (/concret|cement|footing|post.?hole|\bpour/.test(searchText)) {
+    return 1; // Often means return visit
+  }
+
+  // Plastering/rendering: apply, dry, sand/finish — multi-stage
+  if (/plaster|render|skim.?coat|gyproc|cornic|patch.*wall|filler/.test(searchText)) {
+    return 1;
+  }
+
+  // Tiling: adhesive set time before grouting
+  if (jobType === "tiling" || /\btil(e|ing)|grout|adhesive/.test(searchText)) {
+    if (/grout|full.*til|bathroom|shower|floor/.test(searchText)) {
+      return 1; // Adhesive set + grout = 2 stages
+    }
+  }
+
+  // Fencing with new posts: concrete footings need to cure
+  if (jobType === "fencing" && /new post|replace post|post.*concret|set.*post/.test(searchText)) {
+    return 1;
+  }
+
+  // Epoxy, resin, gap filler — anything that needs to cure
+  if (/epoxy|resin|gap.?fill|silicon|sealant|bog/.test(searchText)) {
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
  * Bump band up by N steps, capped at multi_day.
  */
 function bumpBand(band: EffortBand, steps: number): EffortBand {
@@ -189,9 +239,15 @@ export function inferEffortBand(signals: EffortSignals): {
   }
 
   if (matchedBand === "unknown") {
-    // Default by job type if no keywords matched but we have a description
     if (searchText.length > 20) {
-      return { band: "half_day", reason: `Defaulting to half-day for ${jobType} — not enough specifics to narrow down` };
+      // No keyword match but we have a description — default to half_day
+      // but still apply cure/dry time bumps since those are scope-aware
+      const cBump = cureTimeBump(signals.jobType, searchText);
+      const defaultBand = cBump > 0 ? bumpBand("half_day", cBump) : "half_day" as EffortBand;
+      const note = cBump > 0
+        ? `Defaulting to half-day for ${jobType}, adjusted to ${defaultBand} (cure/dry time bump +${cBump})`
+        : `Defaulting to half-day for ${jobType} — not enough specifics to narrow down`;
+      return { band: defaultBand, reason: note };
     }
     return { band: "unknown", reason: "Not enough scope detail to estimate effort" };
   }
@@ -199,13 +255,15 @@ export function inferEffortBand(signals: EffortSignals): {
   // Apply bumps
   const qBump = quantityBump(signals.quantity);
   const aBump = accessBump(signals.accessDifficulty);
-  const totalBump = qBump + aBump;
+  const cBump = cureTimeBump(signals.jobType, searchText);
+  const totalBump = qBump + aBump + cBump;
 
   const finalBand = totalBump > 0 ? bumpBand(matchedBand, totalBump) : matchedBand;
 
   const bumpNotes = [];
   if (qBump > 0) bumpNotes.push(`quantity bump +${qBump}`);
   if (aBump > 0) bumpNotes.push(`access bump +${aBump}`);
+  if (cBump > 0) bumpNotes.push(`cure/dry time bump +${cBump}`);
 
   const reason = totalBump > 0
     ? `Matched "${matchedKeyword}" → ${matchedBand}, adjusted to ${finalBand} (${bumpNotes.join(", ")})`
