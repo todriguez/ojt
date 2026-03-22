@@ -156,7 +156,10 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
   }
 
   // 5. Merge extraction into accumulated state
-  const mergedState = mergeExtraction(currentState, extraction);
+  const mergeResult = mergeExtraction(currentState, extraction);
+  // Cast to AccumulatedJobState — TypeScript can't always resolve the Zod inference
+  // through MergeResult.state, but the runtime type is always AccumulatedJobState.
+  const mergedState = mergeResult.state as AccumulatedJobState;
 
   // 6. Classify estimate acknowledgement if estimate was presented
   if (mergedState.estimatePresented && !mergedState.estimateAcknowledged) {
