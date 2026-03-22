@@ -48,7 +48,7 @@ function main() {
     materials: "hollow core",
     accessDifficulty: null,
   });
-  assert("3 doors → half_day", doorResult.band === "half_day", `got ${doorResult.band}`);
+  assert("3 doors → full_day", doorResult.band === "full_day", `got ${doorResult.band}`);
 
   const fenceResult = inferEffortBand({
     jobType: "fencing",
@@ -103,13 +103,13 @@ function main() {
   console.log("\n2. ROM Estimate Generation");
 
   const doorEstimate = generateRomEstimate({
-    effortBand: "half_day",
+    effortBand: "full_day",
     jobType: "doors_windows",
-    materials: "hollow core doors",
+    materials: null,
     quantity: "3",
   });
-  assert("Half-day cost range", doorEstimate.costMin === 350 && doorEstimate.costMax === 600);
-  assert("Labour only flag", doorEstimate.labourOnly === true);
+  assert("3 doors per-unit cost range", doorEstimate.costMin === 900 && doorEstimate.costMax === 1200, `got ${doorEstimate.costMin}-${doorEstimate.costMax}`);
+  assert("All-in pricing (not labour-only)", doorEstimate.labourOnly === false);
   assert("Materials note present", !!doorEstimate.materialsNote);
 
   const unknownEstimate = generateRomEstimate({

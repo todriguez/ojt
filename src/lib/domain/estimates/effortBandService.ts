@@ -36,10 +36,9 @@ interface BandRule {
 const JOB_TYPE_RULES: Record<string, BandRule[]> = {
   doors_windows: [
     { band: "short", keywords: ["adjust", "lock", "handle", "latch", "hinge"] },
-    { band: "quarter_day", keywords: ["1 door", "single door", "one door", "dog door", "pet door"] },
-    { band: "half_day", keywords: ["2 door", "two door", "3 door", "three door", "frame"] },
-    { band: "full_day", keywords: ["4 door", "four door", "5 door", "five door", "multiple", "window", "sliding"] },
-    { band: "multi_day", keywords: ["all door", "whole house", "renovation", "custom"] },
+    { band: "half_day", keywords: ["1 door", "single door", "one door", "dog door", "pet door"] },
+    { band: "full_day", keywords: ["2 door", "two door", "3 door", "three door", "frame", "mortise", "hung", "paint"] },
+    { band: "multi_day", keywords: ["4 door", "four door", "5 door", "five door", "multiple", "all door", "whole house", "renovation", "custom", "window", "sliding"] },
   ],
   carpentry: [
     { band: "short", keywords: ["shelf", "bracket", "small repair"] },

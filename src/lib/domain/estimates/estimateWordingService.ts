@@ -131,6 +131,10 @@ function formatPattern(pattern: Pattern, p: FormatParams): string {
       return `Hard to be exact without seeing it, but that kind of job usually runs $${p.min}–$${p.max} for the labour. It's a ${p.bandLabel}, so depends what shows up once we get into it.${matSuffix}`;
 
     case "materials_heavy":
+      if (!p.labourOnly) {
+        // All-in pricing (e.g. per-unit door pricing)
+        return `For that kind of job, you're usually looking at roughly $${p.min}–$${p.max} all up — that covers supply and fitting. ${p.materialsNote || ""}`;
+      }
       return `The labour on that is usually around $${p.min}–$${p.max} — ${p.bandLabel}. The materials are on top of that. ${p.materialsNote || ""}`;
 
     default:

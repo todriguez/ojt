@@ -40,7 +40,7 @@ const BAND_RANGES: Record<EffortBand, { costMin: number; costMax: number; hoursM
  * Used to generate the "plus materials" note.
  */
 const MATERIAL_HINTS: Record<string, string> = {
-  doors_windows: "Plus doors — typically $80–200 each for standard hollow-core, more for solid or custom",
+  doors_windows: "Plus hardware if needed — handles, hinges, locks etc.",
   carpentry: "Plus timber and hardware",
   fencing: "Plus posts, rails, and palings — typically $40–60 per metre for standard timber",
   painting: "Plus paint and prep materials — roughly $50–100 per room",
@@ -52,6 +52,27 @@ const MATERIAL_HINTS: Record<string, string> = {
   gardening: "Plus plants, mulch, or soil if needed",
   cleaning: "Cleaning products included",
 };
+
+/**
+ * Per-unit all-in pricing for job types where "per item supplied and fitted"
+ * is a better model than labour + materials separately.
+ */
+const PER_UNIT_PRICES: Record<string, { min: number; max: number; note: string }> = {
+  doors_windows: {
+    min: 300,
+    max: 400,
+    note: "Standard interior hollow-core doors supplied and fitted. Solid or custom doors cost more. Painting extra if needed.",
+  },
+};
+
+/**
+ * Extract a numeric quantity from a string like "3 doors" or "3".
+ */
+function parseQuantity(quantity: string | null | undefined): number {
+  if (!quantity) return 0;
+  const match = quantity.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
 
 interface EstimateInput {
   effortBand: EffortBand;
@@ -80,9 +101,29 @@ export function generateRomEstimate(input: EstimateInput): RomEstimate {
   }
 
   const range = BAND_RANGES[effortBand];
-
-  // Build materials note
   const jt = jobType || "general";
+
+  // ── Per-unit pricing for job types where all-in-one pricing makes more sense ──
+  const perUnitPrice = PER_UNIT_PRICES[jt];
+  if (perUnitPrice) {
+    const qty = parseQuantity(input.quantity);
+    if (qty > 0) {
+      const totalMin = qty * perUnitPrice.min;
+      const totalMax = qty * perUnitPrice.max;
+      return {
+        effortBand,
+        costMin: totalMin,
+        costMax: totalMax,
+        labourOnly: false, // all-in price
+        materialsNote: perUnitPrice.note,
+        hoursMin: range.hoursMin,
+        hoursMax: range.hoursMax,
+        confidenceNote: `Based on ${qty} × $${perUnitPrice.min}–$${perUnitPrice.max} each (supplied and fitted)`,
+      };
+    }
+  }
+
+  // ── Standard labour-only estimate ──
   let materialsNote = MATERIAL_HINTS[jt] || "Plus any materials needed";
 
   // If specific materials were mentioned, use those
