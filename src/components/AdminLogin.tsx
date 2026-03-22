@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Lock, Mail, AlertCircle } from 'lucide-react';
-import { signIn } from '@/lib/authService';
 
 interface AdminLoginProps {
   onLoginSuccess: () => void;
@@ -20,18 +19,17 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
     setLoading(true);
 
     try {
-      const user = await signIn(email, password);
-      // Exchange Firebase ID token for server-side session cookie
-      const idToken = await user.getIdToken();
       const res = await fetch('/api/v2/auth/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ email, password }),
       });
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Server authentication failed');
+        throw new Error(data.error || 'Login failed');
       }
+
       onLoginSuccess();
     } catch (error: any) {
       setError(error.message || 'Login failed. Please check your credentials.');
@@ -121,8 +119,7 @@ export default function AdminLogin({ onLoginSuccess }: AdminLoginProps) {
 
           <div>
             <button
-              type="submit"
-              disabled={loading}
+              type="submit"              disabled={loading}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (

@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const total = Number(countResult[0]?.count || 0);
 
     return NextResponse.json({
-      jobs: results.map((r) => {
+      jobs: results.map((r: any) => {
         const meta = (r.job.metadata && typeof r.job.metadata === "object") ? r.job.metadata as Record<string, unknown> : {};
         return {
           ...r.job,

@@ -10,10 +10,8 @@ import assert from "node:assert/strict";
 // Set env vars before importing modules
 process.env.JWT_SECRET = "test-secret-that-is-at-least-32-characters-long";
 process.env.ADMIN_EMAIL = "todd@oddjobtodd.info";
+process.env.ADMIN_PASSWORD_HASH = "fakesalt:fakehash";
 process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
-process.env.FIREBASE_PROJECT_ID = "test-project";
-process.env.FIREBASE_CLIENT_EMAIL = "test@test.iam.gserviceaccount.com";
-process.env.FIREBASE_PRIVATE_KEY = "test-private-key-placeholder";
 
 describe("JWT utilities", () => {
   it("should sign and verify an admin JWT", async () => {

@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       jobId,
-      messages: messages.map((m) => ({
+      messages: messages.map((m: any) => ({
         id: m.id,
         senderType: m.senderType,
         messageType: m.messageType,

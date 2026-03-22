@@ -119,7 +119,7 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
 
   const conversationSummary = recentMessages
     .reverse()
-    .map((m) => `${m.senderType}: ${m.rawContent}`)
+    .map((m: any) => `${m.senderType}: ${m.rawContent}`)
     .join("\n");
 
   // 4. Run extraction LLM

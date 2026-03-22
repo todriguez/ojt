@@ -26,7 +26,6 @@ import {
   searchJobs,
   markJobAsReviewed
 } from '@/lib/jobService';
-import { signOutUser } from '@/lib/authService';
 
 interface AdminDashboardProps {
   user: any;
@@ -167,7 +166,8 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   // Sign out
   const handleSignOut = async () => {
     try {
-      await signOutUser();
+      await fetch('/api/v2/auth/admin/logout', { method: 'POST' });
+      window.location.href = '/admin/login';
     } catch (error) {
       console.error('Error signing out:', error);
     }

@@ -1,14 +1,16 @@
 /**
  * POST /api/v2/auth/admin/login
  *
- * Receives a Firebase ID token from the client, verifies it server-side
- * via Firebase Admin SDK, checks admin email, creates a session, and
- * sets an httpOnly session cookie.
+ * Direct email + password admin login.
+ * Verifies against ADMIN_EMAIL + ADMIN_PASSWORD_HASH env vars,
+ * creates a session, and sets an httpOnly JWT cookie.
+ *
+ * No Firebase dependency.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyIdToken } from "@/lib/auth/firebaseAdmin";
+import { verifyPassword } from "@/lib/auth/password";
 import { signJwt } from "@/lib/auth/jwt";
 import { createSession } from "@/lib/auth/session";
 import { setAdminSessionCookie } from "@/lib/auth/cookies";
@@ -21,7 +23,8 @@ import { auditLog } from "@/lib/db/schema";
 const log = createLogger("auth.admin");
 
 const loginSchema = z.object({
-  idToken: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
@@ -44,26 +47,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    // Verify Firebase ID token server-side
-    const decoded = await verifyIdToken(parsed.data.idToken);
+    const { email, password } = parsed.data;
+    const config = getConfig();
 
     // Check admin email
-    const config = getConfig();
-    if (decoded.email !== config.ADMIN_EMAIL) {
-      log.warn({ email: decoded.email, ip }, "admin.login.unauthorized");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (email !== config.ADMIN_EMAIL) {
+      log.warn({ email, ip }, "admin.login.unauthorized");
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Sign our own JWT
+    // Verify password
+    const passwordValid = await verifyPassword(password, config.ADMIN_PASSWORD_HASH);
+    if (!passwordValid) {
+      log.warn({ email, ip }, "admin.login.bad_password");
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    // Sign JWT
     const jwt = await signJwt(
-      { type: "admin", email: decoded.email!, sessionId: "" }, // sessionId filled below
+      { type: "admin", email, sessionId: "" },
       "8h"
     );
 
     // Create session
     const session = await createSession({
       type: "admin",
-      actorId: decoded.email!,
+      actorId: email,
       token: jwt,
       ip,
       userAgent: request.headers.get("user-agent") || undefined,
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Re-sign with actual sessionId
     const finalJwt = await signJwt(
-      { type: "admin", email: decoded.email!, sessionId: session.id },
+      { type: "admin", email, sessionId: session.id },
       "8h"
     );
 
@@ -79,16 +88,16 @@ export async function POST(request: NextRequest) {
     const db = await getDb();
     await db.insert(auditLog).values({
       actorType: "admin",
-      actorId: decoded.email!,
+      actorId: email,
       action: "admin.login",
       ipAddress: ip,
     });
 
     // Set cookie and respond
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true, email });
     setAdminSessionCookie(response, finalJwt);
 
-    log.info({ email: decoded.email, sessionId: session.id, ip }, "admin.login.success");
+    log.info({ email, sessionId: session.id, ip }, "admin.login.success");
     return response;
   } catch (err) {
     log.error(
