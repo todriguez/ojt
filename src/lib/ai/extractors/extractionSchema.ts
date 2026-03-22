@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createHash } from "crypto";
 
 /**
  * Schema for what the LLM extracts from each customer message.
@@ -164,65 +165,118 @@ export const accumulatedJobStateSchema = z.object({
 export type AccumulatedJobState = z.infer<typeof accumulatedJobStateSchema>;
 
 /**
+ * Result of a merge operation — carries the merged state plus
+ * semantos-compatible metadata for constructing Patch cells.
+ */
+export interface MergeResult {
+  /** The merged state (Container contents) */
+  state: AccumulatedJobState;
+  /** SHA256 hex of the state before merge (Patch.PREV-STATE) */
+  prevStateHash: string;
+  /** SHA256 hex of the state after merge (new Container integrity hash) */
+  stateHash: string;
+  /** Fields that changed — the delta (Patch payload) */
+  delta: Record<string, { from: unknown; to: unknown }>;
+  /** Number of fields that changed */
+  deltaCount: number;
+}
+
+/**
+ * Compute a deterministic SHA256 hash of an AccumulatedJobState.
+ * Used for Patch cell PREV-STATE / state integrity hashes.
+ */
+function hashState(state: AccumulatedJobState): string {
+  // Sort keys for determinism — JSON.stringify key order can vary
+  const sorted = Object.keys(state)
+    .sort()
+    .reduce<Record<string, unknown>>((acc, key) => {
+      acc[key] = (state as Record<string, unknown>)[key];
+      return acc;
+    }, {});
+  return createHash("sha256").update(JSON.stringify(sorted)).digest("hex");
+}
+
+/**
  * Merge a new extraction into the accumulated state.
  * Only non-null values from the new extraction overwrite.
+ *
+ * Returns a MergeResult with state hashes and delta for semantos bridging.
  */
 export function mergeExtraction(
   current: AccumulatedJobState,
   extraction: MessageExtraction
-): AccumulatedJobState {
+): MergeResult {
+  const prevStateHash = hashState(current);
+  const delta: Record<string, { from: unknown; to: unknown }> = {};
   const merged = { ...current };
 
-  // Merge each field — only overwrite if new extraction has a non-null value
-  if (extraction.customerName) merged.customerName = extraction.customerName;
-  if (extraction.customerPhone) merged.customerPhone = extraction.customerPhone;
-  if (extraction.customerEmail) merged.customerEmail = extraction.customerEmail;
-  if (extraction.suburb) merged.suburb = extraction.suburb;
-  if (extraction.locationClue) merged.locationClue = extraction.locationClue;
-  if (extraction.address) merged.address = extraction.address;
-  if (extraction.postcode) merged.postcode = extraction.postcode;
-  if (extraction.accessNotes) merged.accessNotes = extraction.accessNotes;
-  if (extraction.jobType) {
-    merged.jobType = extraction.jobType;
-    merged.jobTypeConfidence = extraction.jobTypeConfidence;
+  // Helper: track changes
+  function setField<K extends keyof AccumulatedJobState>(key: K, value: AccumulatedJobState[K]) {
+    if (merged[key] !== value) {
+      delta[key] = { from: merged[key], to: value };
+    }
+    merged[key] = value;
   }
-  if (extraction.jobSubcategory) merged.jobSubcategory = extraction.jobSubcategory;
-  if (extraction.repairReplaceSignal) merged.repairReplaceSignal = extraction.repairReplaceSignal;
+
+  // Merge each field — only overwrite if new extraction has a non-null value
+  if (extraction.customerName) setField("customerName", extraction.customerName);
+  if (extraction.customerPhone) setField("customerPhone", extraction.customerPhone);
+  if (extraction.customerEmail) setField("customerEmail", extraction.customerEmail);
+  if (extraction.suburb) setField("suburb", extraction.suburb);
+  if (extraction.locationClue) setField("locationClue", extraction.locationClue);
+  if (extraction.address) setField("address", extraction.address);
+  if (extraction.postcode) setField("postcode", extraction.postcode);
+  if (extraction.accessNotes) setField("accessNotes", extraction.accessNotes);
+  if (extraction.jobType) {
+    setField("jobType", extraction.jobType);
+    setField("jobTypeConfidence", extraction.jobTypeConfidence);
+  }
+  if (extraction.jobSubcategory) setField("jobSubcategory", extraction.jobSubcategory);
+  if (extraction.repairReplaceSignal) setField("repairReplaceSignal", extraction.repairReplaceSignal);
   if (extraction.scopeDescription) {
     // Append scope description rather than replace
-    merged.scopeDescription = merged.scopeDescription
+    const appended = merged.scopeDescription
       ? `${merged.scopeDescription}. ${extraction.scopeDescription}`
       : extraction.scopeDescription;
+    setField("scopeDescription", appended);
   }
-  if (extraction.quantity) merged.quantity = extraction.quantity;
-  if (extraction.materials) merged.materials = extraction.materials;
-  if (extraction.materialCondition) merged.materialCondition = extraction.materialCondition;
-  if (extraction.accessDifficulty) merged.accessDifficulty = extraction.accessDifficulty;
-  if (extraction.photosReferenced !== null) merged.photosReferenced = extraction.photosReferenced;
-  if (extraction.urgency) merged.urgency = extraction.urgency;
+  if (extraction.quantity) setField("quantity", extraction.quantity);
+  if (extraction.materials) setField("materials", extraction.materials);
+  if (extraction.materialCondition) setField("materialCondition", extraction.materialCondition);
+  if (extraction.accessDifficulty) setField("accessDifficulty", extraction.accessDifficulty);
+  if (extraction.photosReferenced !== null) setField("photosReferenced", extraction.photosReferenced);
+  if (extraction.urgency) setField("urgency", extraction.urgency);
 
   // Customer signals — accumulate, don't overwrite frivolously
-  if (extraction.estimateReaction) merged.estimateReaction = extraction.estimateReaction;
-  if (extraction.budgetReaction) merged.budgetReaction = extraction.budgetReaction;
-  if (extraction.customerToneSignal) merged.customerToneSignal = extraction.customerToneSignal;
-  if (extraction.micromanagerSignals !== null) merged.micromanagerSignals = extraction.micromanagerSignals;
-  if (extraction.cheapestMindset !== null) merged.cheapestMindset = extraction.cheapestMindset;
-  if (extraction.clarityScore) merged.clarityScore = extraction.clarityScore;
-  if (extraction.contactReadiness) merged.contactReadiness = extraction.contactReadiness;
+  if (extraction.estimateReaction) setField("estimateReaction", extraction.estimateReaction);
+  if (extraction.budgetReaction) setField("budgetReaction", extraction.budgetReaction);
+  if (extraction.customerToneSignal) setField("customerToneSignal", extraction.customerToneSignal);
+  if (extraction.micromanagerSignals !== null) setField("micromanagerSignals", extraction.micromanagerSignals);
+  if (extraction.cheapestMindset !== null) setField("cheapestMindset", extraction.cheapestMindset);
+  if (extraction.clarityScore) setField("clarityScore", extraction.clarityScore);
+  if (extraction.contactReadiness) setField("contactReadiness", extraction.contactReadiness);
 
-  merged.conversationPhase = extraction.conversationPhase;
-  merged.missingInfo = extraction.missingInfo;
+  setField("conversationPhase", extraction.conversationPhase);
+  setField("missingInfo", extraction.missingInfo);
 
   // Recalculate completeness sub-scores and total
   const sub = calculateSubScores(merged);
-  merged.scopeClarity = sub.scopeClarity;
-  merged.locationClarity = sub.locationClarity;
-  merged.contactReadinessScore = sub.contactReadiness;
-  merged.estimateReadiness = sub.estimateReadiness;
-  merged.decisionReadiness = sub.decisionReadiness;
-  merged.completenessScore = sub.total;
+  setField("scopeClarity", sub.scopeClarity);
+  setField("locationClarity", sub.locationClarity);
+  setField("contactReadinessScore", sub.contactReadiness);
+  setField("estimateReadiness", sub.estimateReadiness);
+  setField("decisionReadiness", sub.decisionReadiness);
+  setField("completenessScore", sub.total);
 
-  return merged;
+  const stateHash = hashState(merged);
+
+  return {
+    state: merged,
+    prevStateHash,
+    stateHash,
+    delta,
+    deltaCount: Object.keys(delta).length,
+  };
 }
 
 /**

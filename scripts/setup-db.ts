@@ -8,6 +8,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../src/lib/db/schema";
+import {
+  getAllCategories,
+  TRANSACTION_TYPES,
+  INSTRUMENT_TYPES,
+} from "../src/lib/domain/categories/categoryTree";
+import { sql } from "drizzle-orm";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -182,6 +188,101 @@ async function main() {
     { jobId: jobs[2].id, fromState: "new_lead", toState: "estimate_presented", actorType: "system", reason: "Auto ROM presented during intake" },
   ]);
   console.log("  4 state events");
+
+  // ── Seed Categories (Universal Taxonomy) ────
+  console.log("\nSeeding categories...");
+
+  const categoryRows: any[] = [];
+
+  // WHAT dimension
+  const whatNodes = getAllCategories();
+  for (const node of whatNodes) {
+    categoryRows.push({
+      path: node.path,
+      dimension: "what" as const,
+      name: node.name,
+      slug: node.slug,
+      level: node.level,
+      parentPath: node.parent,
+      description: node.description,
+      keywords: node.keywords,
+      attributes: node.attributes,
+      valueMultiplier: node.valueMultiplier.toFixed(2),
+      siteVisitLikely: node.siteVisitLikely,
+      licensedTrade: node.licensedTrade,
+      validTxTypes: node.validTxTypes,
+      modalTemplate: node.modalTemplate || null,
+      embeddingText: node.embeddingText || null,
+    });
+  }
+
+  // HOW dimension (transaction types)
+  for (const tx of TRANSACTION_TYPES) {
+    categoryRows.push({
+      path: tx.path,
+      dimension: "how" as const,
+      name: tx.name,
+      slug: tx.slug,
+      level: 0,
+      parentPath: null,
+      description: `${tx.description}. Settlement: ${tx.settlementPattern}`,
+      keywords: tx.keywords,
+      attributes: [],
+      valueMultiplier: "1.00",
+      siteVisitLikely: false,
+      licensedTrade: false,
+      validTxTypes: [],
+      modalTemplate: null,
+      embeddingText: `transaction ${tx.name} — ${tx.description}. Keywords: ${tx.keywords.join(", ")}`,
+    });
+  }
+
+  // INSTRUMENT dimension
+  for (const inst of INSTRUMENT_TYPES) {
+    categoryRows.push({
+      path: inst.path,
+      dimension: "instrument" as const,
+      name: inst.name,
+      slug: inst.slug,
+      level: 0,
+      parentPath: null,
+      description: inst.description,
+      keywords: [],
+      attributes: [],
+      valueMultiplier: "1.00",
+      siteVisitLikely: false,
+      licensedTrade: false,
+      validTxTypes: [],
+      modalTemplate: null,
+      embeddingText: `instrument ${inst.name} — ${inst.description}`,
+    });
+    for (const sub of inst.subtypes) {
+      categoryRows.push({
+        path: sub.path,
+        dimension: "instrument" as const,
+        name: sub.name,
+        slug: sub.slug,
+        level: 1,
+        parentPath: inst.path,
+        description: `${sub.name} (subtype of ${inst.name})`,
+        keywords: [],
+        attributes: [],
+        valueMultiplier: "1.00",
+        siteVisitLikely: false,
+        licensedTrade: false,
+        validTxTypes: [],
+        modalTemplate: null,
+        embeddingText: `instrument ${sub.name} — subtype of ${inst.name}`,
+      });
+    }
+  }
+
+  // Insert in batches
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < categoryRows.length; i += BATCH_SIZE) {
+    await db.insert(schema.categories).values(categoryRows.slice(i, i + BATCH_SIZE));
+  }
+  console.log(`  ${categoryRows.length} categories (WHAT: ${whatNodes.length}, HOW: ${TRANSACTION_TYPES.length}, INSTRUMENT: ${categoryRows.length - whatNodes.length - TRANSACTION_TYPES.length})`);
 
   console.log("\nSetup complete! Database ready at", DATA_DIR);
   await client.close();

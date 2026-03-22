@@ -419,6 +419,10 @@ export const jobs = pgTable(
     // Accumulated conversation state (JSON blob from extraction merges)
     metadata: jsonb("metadata"),
 
+    // Semantos bridge columns
+    typeHash: varchar("type_hash", { length: 64 }),   // SHA256 hex of (WHAT:HOW:INST)
+    stateHash: varchar("state_hash", { length: 64 }),  // SHA256 hex of current accumulated state
+
     // Timestamps
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -703,6 +707,7 @@ export const jobsRelations = relations(jobs, ({ one, many }) => ({
     fields: [jobs.id],
     references: [jobOutcomes.jobId],
   }),
+  instruments: many(instruments),
 }));
 
 export const messagesRelations = relations(messages, ({ one, many }) => ({
@@ -867,3 +872,75 @@ export const categories = pgTable(
     index("categories_slug_idx").on(table.slug),
   ]
 );
+
+// ── Instruments (Capsule storage) ───────────
+
+export const instrumentStatusEnum = pgEnum("instrument_status", [
+  "draft",
+  "presented",
+  "accepted",
+  "rejected",
+  "superseded",
+  "expired",
+]);
+
+export const instruments = pgTable(
+  "instruments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisations.id),
+
+    // Semantos type triple
+    instrumentPath: varchar("instrument_path", { length: 255 }).notNull(), // e.g. "inst.quote.rom"
+    categoryPath: varchar("category_path", { length: 255 }),               // WHAT dimension
+    txType: varchar("tx_type", { length: 50 }),                            // HOW dimension
+    typeHash: varchar("type_hash", { length: 64 }).notNull(),              // SHA256(WHAT:HOW:INST)
+
+    // State integrity
+    stateHash: varchar("state_hash", { length: 64 }),     // state hash at time of rendering
+    parentStateHash: varchar("parent_state_hash", { length: 64 }), // prev state hash (Patch linkage)
+
+    // Linearity: "affine" | "relevant" — instruments are capsules (relevant)
+    linearity: varchar("linearity", { length: 20 }).notNull().default("relevant"),
+
+    // Rendered content
+    status: instrumentStatusEnum("status").notNull().default("draft"),
+    version: integer("version").notNull().default(1),
+    renderedJson: jsonb("rendered_json").notNull(),        // Full RenderedInstrument payload
+    renderedText: text("rendered_text"),                    // Human-readable text version
+    totalAmountCents: integer("total_amount_cents"),        // Denormalised for queries
+    gstAmountCents: integer("gst_amount_cents"),
+
+    // Lifecycle
+    presentedAt: timestamp("presented_at", { withTimezone: true }),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    supersededById: uuid("superseded_by_id"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("instruments_job_idx").on(table.jobId),
+    index("instruments_org_idx").on(table.organisationId),
+    index("instruments_type_hash_idx").on(table.typeHash),
+    index("instruments_status_idx").on(table.status),
+    index("instruments_instrument_path_idx").on(table.instrumentPath),
+  ]
+);
+
+export const instrumentsRelations = relations(instruments, ({ one }) => ({
+  job: one(jobs, {
+    fields: [instruments.jobId],
+    references: [jobs.id],
+  }),
+  organisation: one(organisations, {
+    fields: [instruments.organisationId],
+    references: [organisations.id],
+  }),
+}));

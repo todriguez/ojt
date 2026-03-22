@@ -17,6 +17,7 @@ import {
   type CategoryNode,
   type TransactionType,
 } from "./categoryTree";
+import { computeTypeHash } from "../bridge/typeHashRegistry";
 
 // ── Types ────────────────────────────────────────
 
@@ -41,6 +42,9 @@ export interface CategoryResolution {
     siteVisitLikely: boolean;
     licensedTrade: boolean;
   };
+
+  // Semantos bridge: deterministic type hash for cell header
+  typeHash: string; // hex-encoded SHA256(path:txType:instrumentPath)
 }
 
 // ── Resolution ───────────────────────────────────
@@ -69,6 +73,9 @@ export function resolveCategory(
   // Get scoring context
   const scoring = getScoringContext(node.path);
 
+  // Compute deterministic type hash: SHA256(what:how:inst)
+  const typeHash = computeTypeHash(node.path, tx.slug, instrumentPath).toString("hex");
+
   return {
     path: node.path,
     name: node.name,
@@ -84,6 +91,7 @@ export function resolveCategory(
     settlementPattern: tx.settlementPattern,
     instrumentPath,
     scoringContext: scoring,
+    typeHash,
   };
 }
 
