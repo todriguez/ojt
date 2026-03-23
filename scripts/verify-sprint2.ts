@@ -57,7 +57,7 @@ function main() {
     materials: null,
     accessDifficulty: null,
   });
-  assert("6m fence section → half_day or full_day", ["half_day", "full_day"].includes(fenceResult.band), `got ${fenceResult.band}`);
+  assert("6m fence section → full_day or multi_day", ["full_day", "multi_day"].includes(fenceResult.band), `got ${fenceResult.band}`);
 
   const quickResult = inferEffortBand({
     jobType: "general",

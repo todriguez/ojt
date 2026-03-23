@@ -105,13 +105,13 @@ assert("Cure time bump in reason", paintResult.reason.includes("cure/dry"), pain
 const paintResult2 = inferEffortBand({ jobType: "painting", scopeDescription: "paint one room" });
 assert("1 room paint (no coats) → half_day", paintResult2.band === "half_day", `got ${paintResult2.band}`);
 
-// Concrete footings
+// Concrete footings + post replacement → multi_day
 const fenceConcreteResult = inferEffortBand({ jobType: "fencing", scopeDescription: "6m fence section, replace posts, concrete footings" });
-assert("Fence + concrete → full_day", fenceConcreteResult.band === "full_day", `got ${fenceConcreteResult.band}`);
+assert("Fence + new posts → multi_day", fenceConcreteResult.band === "multi_day", `got ${fenceConcreteResult.band}`);
 
-// Fence without concrete (no cure bump)
+// Fence without post replacement (posts ok, just re-paling)
 const fenceResult = inferEffortBand({ jobType: "fencing", scopeDescription: "6m fence section blown down, existing posts ok" });
-assert("Fence no concrete → half_day", fenceResult.band === "half_day", `got ${fenceResult.band}`);
+assert("Fence no posts → full_day", fenceResult.band === "full_day", `got ${fenceResult.band}`);
 
 // Tiling with grout
 const tileResult = inferEffortBand({ jobType: "tiling", scopeDescription: "tile bathroom floor and grout" });

@@ -48,10 +48,10 @@ const JOB_TYPE_RULES: Record<string, BandRule[]> = {
     { band: "multi_day", keywords: ["build deck", "new deck", "renovation", "extension", "full kitchen"] },
   ],
   fencing: [
-    { band: "quarter_day", keywords: ["gate", "1 post", "single post", "latch", "repair"] },
-    { band: "half_day", keywords: ["section", "panel", "3m", "4m", "5m", "6m", "few metres"] },
-    { band: "full_day", keywords: ["10m", "15m", "side fence", "boundary"] },
-    { band: "multi_day", keywords: ["full fence", "whole yard", "20m", "30m", "perimeter"] },
+    { band: "quarter_day", keywords: ["gate", "latch", "repair"] },
+    { band: "half_day", keywords: ["1 post", "single post", "panel", "3m", "4m"] },
+    { band: "full_day", keywords: ["section", "5m", "6m", "few metres", "side fence", "boundary", "fallen", "storm", "blown"] },
+    { band: "multi_day", keywords: ["10m", "15m", "20m", "30m", "full fence", "whole yard", "perimeter", "replace post", "dig out", "new post"] },
   ],
   painting: [
     { band: "short", keywords: ["touch up", "patch", "small area"] },

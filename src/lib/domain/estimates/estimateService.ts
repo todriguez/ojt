@@ -42,7 +42,7 @@ const BAND_RANGES: Record<EffortBand, { costMin: number; costMax: number; hoursM
 const MATERIAL_HINTS: Record<string, string> = {
   doors_windows: "Plus hardware if needed — handles, hinges, locks etc.",
   carpentry: "Plus timber and hardware",
-  fencing: "Plus posts, rails, and palings — typically $40–60 per metre for standard timber",
+  fencing: "Plus materials: posts ($30–50 each), concrete, rails, palings — roughly $50–80 per metre for standard timber depending on what needs replacing",
   painting: "Plus paint and prep materials — roughly $50–100 per room",
   plumbing: "Plus parts and fittings",
   tiling: "Plus tiles, adhesive, and grout",
