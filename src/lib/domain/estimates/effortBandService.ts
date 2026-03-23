@@ -44,8 +44,8 @@ const JOB_TYPE_RULES: Record<string, BandRule[]> = {
     { band: "short", keywords: ["shelf", "bracket", "small repair"] },
     { band: "quarter_day", keywords: ["shelving", "patch", "board", "minor"] },
     { band: "half_day", keywords: ["deck repair", "railing", "balustrade", "stair", "cabinet"] },
-    { band: "full_day", keywords: ["deck", "pergola", "carport", "cupboard", "kitchen", "install"] },
-    { band: "multi_day", keywords: ["build deck", "new deck", "renovation", "extension", "full kitchen"] },
+    { band: "full_day", keywords: ["deck", "cupboard", "kitchen", "install"] },
+    { band: "multi_day", keywords: ["pergola", "carport", "build deck", "new deck", "renovation", "extension", "full kitchen"] },
   ],
   fencing: [
     { band: "quarter_day", keywords: ["gate", "latch", "repair"] },
