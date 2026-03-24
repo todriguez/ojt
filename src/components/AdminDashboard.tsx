@@ -270,6 +270,20 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
               <p className="text-sm text-gray-500">{user?.email}</p>
             </div>
             <div className="flex items-center gap-3">
+              <a
+                href="/admin/chat"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">Copilot</span>
+              </a>
+              <a
+                href="/admin/import-job"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition"
+              >
+                <span className="hidden sm:inline">Import PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </a>
               <button
                 onClick={loadLeads}
                 className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
