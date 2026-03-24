@@ -90,6 +90,29 @@ export const evidenceKindEnum = pgEnum("sem_evidence_kind", [
   "observation",   // System observation
   "image",         // Photo/screenshot
   "voice",         // Voice message transcript
+  "selection",     // Product/material selection decision
+]);
+
+export const participantRoleEnum = pgEnum("sem_participant_role", [
+  "creator",       // Initiated the object (REA, homeowner)
+  "contributor",   // Can add evidence/preferences (tenant)
+  "approver",      // Must approve state transitions (landlord, budget holder)
+  "observer",      // Can view but not modify (read-only stakeholder)
+  "executor",      // Performs the work (operator/tradesperson)
+]);
+
+export const identityKindEnum = pgEnum("sem_identity_kind", [
+  "customer",      // End customer (tenant, homeowner)
+  "admin",         // Organisation admin
+  "operator",      // Service provider (tradesperson)
+  "external",      // External party (REA, landlord, supplier)
+  "ai",            // AI assistant participant
+]);
+
+export const channelKindEnum = pgEnum("sem_channel_kind", [
+  "participant_pair",  // 1:1 conversation (participant ↔ AI, or participant ↔ participant)
+  "group",             // Multi-party channel (future)
+  "system",            // System notifications channel
 ]);
 
 export const outcomeDecisionEnum = pgEnum("sem_outcome_decision", [
@@ -468,11 +491,15 @@ export const evidenceItems = pgTable(
     sourceRef: text("source_ref").notNull(), // message UUID, filename, channel
     confidence: real("confidence").notNull().default(0.5),
 
+    // ── Channel attribution (which conversation channel produced this evidence) ──
+    channelId: text("channel_id"), // FK → sem_channels.id (nullable for backward compat)
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("sem_evidence_object_idx").on(table.objectId),
     index("sem_evidence_kind_idx").on(table.evidenceKind),
+    index("sem_evidence_channel_idx").on(table.channelId),
   ]
 );
 
@@ -665,6 +692,129 @@ export const anchorRequests = pgTable(
   ]
 );
 
+// ═══ A.18 PARTICIPANTS ═══════════════════════════════════════════════════════
+// Who is involved in a semantic object. Universal identity model.
+// Maps to Plexus identity nodes when integrated.
+
+export const participants = pgTable(
+  "sem_participants",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    objectId: text("object_id").notNull().references(() => semanticObjects.id, { onDelete: "cascade" }),
+
+    // ── Identity (generic — maps to customerId, adminEmail, or Plexus certId) ──
+    identityRef: text("identity_ref").notNull(),         // "customer:<uuid>" | "admin:<email>" | "plexus:<certId>"
+    identityKind: identityKindEnum("identity_kind").notNull(),
+    participantRole: participantRoleEnum("participant_role").notNull(),
+
+    // ── Display ──
+    displayName: varchar("display_name", { length: 255 }),
+
+    // ── Lifecycle ──
+    invitedBy: text("invited_by"),                       // identityRef of whoever added this participant
+    joinedAt: timestamp("joined_at", { withTimezone: true }),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("sem_participants_object_idx").on(table.objectId),
+    index("sem_participants_identity_idx").on(table.identityRef),
+    uniqueIndex("sem_participants_uniq").on(table.objectId, table.identityRef),
+  ]
+);
+
+// ═══ A.19 CHANNELS ══════════════════════════════════════════════════════════
+// Conversation threads between participants on a semantic object.
+// Each channel is a private evidence stream with its own message history.
+
+export const channels = pgTable(
+  "sem_channels",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    objectId: text("object_id").notNull().references(() => semanticObjects.id, { onDelete: "cascade" }),
+
+    // ── Channel identity ──
+    channelKind: channelKindEnum("channel_kind").notNull(),
+    label: varchar("label", { length: 100 }),            // "Tenant ↔ AI", "REA ↔ Landlord"
+
+    // ── Participant set ──
+    participantIds: jsonb("participant_ids").notNull().$type<string[]>(), // sem_participants.id[]
+
+    // ── Edge linkage — a channel IS a relationship ──
+    edgeId: text("edge_id"),                             // FK → sem_object_edges.id
+
+    // ── Lifecycle ──
+    isActive: boolean("is_active").notNull().default(true),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("sem_channels_object_idx").on(table.objectId),
+    index("sem_channels_active_idx").on(table.objectId, table.isActive),
+  ]
+);
+
+// ═══ A.20 ACCESS POLICIES ═══════════════════════════════════════════════════
+// Versioned access rules governing participant visibility and contribution rights.
+// Follows the scoring_policies pattern: immutable, versioned, auditable.
+
+export const accessPolicies = pgTable(
+  "sem_access_policies",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    vertical: varchar("vertical", { length: 50 }).notNull(),
+    name: varchar("name", { length: 100 }).notNull(),
+    version: integer("version").notNull(),
+
+    // ── Policy content ──
+    roleRules: jsonb("role_rules").notNull(),             // per-role field visibility + contribution rights
+    overrideHierarchy: jsonb("override_hierarchy").notNull(), // who outranks whom
+    aiContextFilter: jsonb("ai_context_filter").notNull(),   // what the AI sees per role
+
+    // ── Template vs instance ──
+    isTemplate: boolean("is_template").notNull().default(true),
+    sourceTemplateId: text("source_template_id"),
+
+    // ── Governance ──
+    isActive: boolean("is_active").notNull().default(true),
+    tuningLocked: boolean("tuning_locked").notNull().default(false),
+    tunedFromVersion: integer("tuned_from_version"),
+    createdBy: varchar("created_by", { length: 100 }),
+    changeNotes: text("change_notes"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("sem_access_policies_uniq").on(table.vertical, table.name, table.version),
+    index("sem_access_policies_active_idx").on(table.vertical, table.isActive),
+  ]
+);
+
+// ═══ A.21 CHANNEL POLICIES ══════════════════════════════════════════════════
+// Junction: links a channel + participant to their governing access policy.
+// Supports sparse per-participant overrides on top of the template.
+
+export const channelPolicies = pgTable(
+  "sem_channel_policies",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    channelId: text("channel_id").notNull(),              // FK → sem_channels.id
+    policyId: text("policy_id").notNull(),                // FK → sem_access_policies.id
+    participantId: text("participant_id").notNull(),       // FK → sem_participants.id
+
+    // ── Per-participant overrides (sparse — only what differs from template) ──
+    fieldOverrides: jsonb("field_overrides"),             // { "estimateCost": "visible" }
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("sem_channel_policies_uniq").on(table.channelId, table.participantId),
+    index("sem_channel_policies_channel_idx").on(table.channelId),
+  ]
+);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // RELATIONS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -681,6 +831,8 @@ export const semanticObjectsRelations = relations(semanticObjects, ({ many, one 
   evidence: many(evidenceItems),
   pendingWrites: many(pendingWrites),
   anchorRequests: many(anchorRequests),
+  participants: many(participants),
+  channels: many(channels),
 }));
 
 export const objectStatesRelations = relations(objectStates, ({ one }) => ({
@@ -722,4 +874,12 @@ export const pendingWritesRelations = relations(pendingWrites, ({ one }) => ({
 
 export const anchorRequestsRelations = relations(anchorRequests, ({ one }) => ({
   object: one(semanticObjects, { fields: [anchorRequests.objectId], references: [semanticObjects.id] }),
+}));
+
+export const participantsRelations = relations(participants, ({ one }) => ({
+  object: one(semanticObjects, { fields: [participants.objectId], references: [semanticObjects.id] }),
+}));
+
+export const channelsRelations = relations(channels, ({ one }) => ({
+  object: one(semanticObjects, { fields: [channels.objectId], references: [semanticObjects.id] }),
 }));

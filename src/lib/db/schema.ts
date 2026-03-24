@@ -456,12 +456,14 @@ export const messages = pgTable(
     rawContent: text("raw_content").notNull(),
     transcript: text("transcript"), // for voice messages
     extractedJson: jsonb("extracted_json"), // structured extraction output
+    channelId: text("channel_id"), // FK → sem_channels.id (nullable for backward compat)
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("messages_job_idx").on(table.jobId),
     index("messages_customer_idx").on(table.customerId),
     index("messages_created_idx").on(table.createdAt),
+    index("messages_channel_idx").on(table.channelId),
   ]
 );
 
