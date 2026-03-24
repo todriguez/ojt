@@ -50,6 +50,19 @@ export default function CustomerChatbot() {
   }, []);
 
   const checkSession = async () => {
+    // ?fresh param: clear all session state and start a new conversation
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('fresh')) {
+      localStorage.removeItem(STORAGE_KEY);
+      fetch('/api/v2/auth/logout', { method: 'POST' }).catch(() => {});
+      // Strip ?fresh from URL so refresh doesn't keep clearing
+      const url = new URL(window.location.href);
+      url.searchParams.delete('fresh');
+      window.history.replaceState({}, '', url.pathname + url.search);
+      setView('chat');
+      return;
+    }
+
     try {
       const res = await fetch('/api/v2/auth/session');
       if (res.ok) {

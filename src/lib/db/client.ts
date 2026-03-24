@@ -1,4 +1,7 @@
 import * as schema from "./schema";
+import * as universalSchema from "./schema.universal";
+import * as kernelCoreSchema from "../semantos-kernel/schema.core";
+import * as tradesSchema from "../semantos-kernel/verticals/trades/schema.trades";
 import { createLogger } from "@/lib/logger";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 
@@ -11,7 +14,8 @@ import type { PgDatabase } from "drizzle-orm/pg-core";
 
 const log = createLogger("db");
 
-type DbClient = PgDatabase<any, typeof schema>;
+const allSchema = { ...schema, ...universalSchema, ...kernelCoreSchema, ...tradesSchema };
+type DbClient = PgDatabase<any, typeof allSchema>;
 let _db: DbClient | null = null;
 
 async function initPostgres() {
@@ -30,7 +34,7 @@ async function initPostgres() {
   });
 
   log.info("Connected to Postgres via DATABASE_URL");
-  return drizzle(pool, { schema });
+  return drizzle(pool, { schema: allSchema });
 }
 
 async function initPglite() {
@@ -42,7 +46,7 @@ async function initPglite() {
   await client.waitReady;
 
   log.info({ dataDir }, "Connected to PGlite (local dev)");
-  return drizzlePglite(client, { schema });
+  return drizzlePglite(client, { schema: allSchema });
 }
 
 export async function getDb(): Promise<DbClient> {
