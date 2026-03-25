@@ -20,9 +20,9 @@ const log = createLogger("admin.outcomes");
 
 const outcomeUpdateSchema = z.object({
   actual_outcome: z.enum([
-    "completed_paid", "completed_disputed", "booked_cancelled",
-    "quoted_rejected", "quoted_ghosted", "site_visit_declined",
-    "site_visit_booked", "customer_went_elsewhere", "customer_ghosted",
+    "completed", "disputed", "cancelled",
+    "rejected", "evaluated_unresponsive", "inspected_declined",
+    "inspected_committed", "diverted", "unresponsive",
     "not_pursued", "still_active",
   ]).optional(),
   outcome_value: z.number().int().min(0).optional(), // cents

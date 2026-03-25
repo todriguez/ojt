@@ -316,7 +316,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <h3 className="text-sm font-medium text-gray-700 mb-3">Actions</h3>
 
           <div className="flex flex-wrap gap-2 mb-4">
-            {["followed_up", "quoted", "booked", "site_visited", "declined", "archived"].map((action) => (
+            {["followed_up", "evaluated", "committed", "inspected", "declined", "archived"].map((action) => (
               <button
                 key={action}
                 onClick={() => handleAction(action)}

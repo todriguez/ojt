@@ -95,9 +95,9 @@ export const evidenceKindEnum = pgEnum("sem_evidence_kind", [
 
 export const outcomeDecisionEnum = pgEnum("sem_outcome_decision", [
   "followed_up",
-  "quoted",
-  "booked",
-  "site_visited",
+  "evaluated",
+  "committed",
+  "inspected",
   "declined",
   "archived",
   "referred_out",
@@ -106,13 +106,13 @@ export const outcomeDecisionEnum = pgEnum("sem_outcome_decision", [
 ]);
 
 export const outcomeResultEnum = pgEnum("sem_outcome_result", [
-  "completed_paid",
-  "completed_disputed",
-  "booked_cancelled",
-  "quoted_rejected",
-  "quoted_ghosted",
-  "customer_went_elsewhere",
-  "customer_ghosted",
+  "completed",
+  "disputed",
+  "cancelled",
+  "rejected",
+  "evaluated_unresponsive",
+  "diverted",
+  "unresponsive",
   "not_pursued",
   "still_active",
 ]);

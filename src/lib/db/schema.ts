@@ -220,9 +220,9 @@ export const suburbGroupEnum = pgEnum("suburb_group", [
 
 export const humanDecisionEnum = pgEnum("human_decision", [
   "followed_up",
-  "quoted",
-  "booked",
-  "site_visited",
+  "evaluated",
+  "committed",
+  "inspected",
   "declined",
   "archived",
   "referred_out",
@@ -231,15 +231,15 @@ export const humanDecisionEnum = pgEnum("human_decision", [
 ]);
 
 export const actualOutcomeEnum = pgEnum("actual_outcome", [
-  "completed_paid",
-  "completed_disputed",
-  "booked_cancelled",
-  "quoted_rejected",
-  "quoted_ghosted",
-  "site_visit_declined",
-  "site_visit_booked",
-  "customer_went_elsewhere",
-  "customer_ghosted",
+  "completed",
+  "disputed",
+  "cancelled",
+  "rejected",
+  "evaluated_unresponsive",
+  "inspected_declined",
+  "inspected_committed",
+  "diverted",
+  "unresponsive",
   "not_pursued",
   "still_active",
 ]);

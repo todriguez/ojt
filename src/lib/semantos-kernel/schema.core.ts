@@ -117,9 +117,9 @@ export const channelKindEnum = pgEnum("sem_channel_kind", [
 
 export const outcomeDecisionEnum = pgEnum("sem_outcome_decision", [
   "followed_up",
-  "quoted",
-  "booked",
-  "site_visited",
+  "evaluated",
+  "committed",
+  "inspected",
   "declined",
   "archived",
   "referred_out",
@@ -128,13 +128,13 @@ export const outcomeDecisionEnum = pgEnum("sem_outcome_decision", [
 ]);
 
 export const outcomeResultEnum = pgEnum("sem_outcome_result", [
-  "completed_paid",
-  "completed_disputed",
-  "booked_cancelled",
-  "quoted_rejected",
-  "quoted_ghosted",
-  "customer_went_elsewhere",
-  "customer_ghosted",
+  "completed",
+  "disputed",
+  "cancelled",
+  "rejected",
+  "evaluated_unresponsive",
+  "diverted",
+  "unresponsive",
   "not_pursued",
   "still_active",
 ]);
@@ -150,7 +150,7 @@ export const anchorStatusEnum = pgEnum("sem_anchor_status", [
 // The durable identity/header row. One per meaningful object in the system.
 // This is the relational counterpart of the semantos 256-byte header.
 //
-// Core-agnostic: a job, a customer interaction, a quote lifecycle.
+// Core-agnostic: any durable semantic object across any vertical.
 // The object itself is domain-agnostic — verticals interpret the payload.
 
 export const semanticObjects = pgTable(
@@ -178,6 +178,11 @@ export const semanticObjects = pgTable(
     flags: integer("flags").notNull().default(0), // bitfield: 0x01=immutable, 0x02=spent
     status: objectStatusEnum("status").notNull().default("active"),
 
+    // ── External identity (for per-instance objects like jobs) ──
+    // When provided, lookup uses (typeHash, externalId) instead of typeHash alone.
+    // Null for singleton objects (type registries, policies) that are shared by type.
+    externalId: varchar("external_id", { length: 255 }),
+
     // ── Ownership ──
     ownerId: text("owner_id"), // user ID, operator ID, org ID
     createdBy: text("created_by"), // who/what created this object
@@ -194,6 +199,7 @@ export const semanticObjects = pgTable(
   (table) => [
     index("sem_objects_vertical_kind_idx").on(table.vertical, table.objectKind),
     index("sem_objects_type_hash_idx").on(table.typeHash),
+    index("sem_objects_type_hash_external_idx").on(table.typeHash, table.externalId),
     index("sem_objects_state_hash_idx").on(table.currentStateHash),
     index("sem_objects_owner_idx").on(table.ownerId),
     index("sem_objects_status_idx").on(table.status),

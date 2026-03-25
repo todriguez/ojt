@@ -255,7 +255,7 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   const stats = {
     needsReview: leads.filter(l => !l.hasOutcome && l.status !== 'archived').length,
     priority: leads.filter(l => l.recommendation === 'priority_lead' || l.recommendation === 'probably_bookable').length,
-    quoted: leads.filter(l => l.humanDecision === 'quoted' || l.humanDecision === 'booked').length,
+    quoted: leads.filter(l => l.humanDecision === 'evaluated' || l.humanDecision === 'committed').length,
     declined: leads.filter(l => l.humanDecision === 'declined' || l.humanDecision === 'archived').length,
   };
 
@@ -544,14 +544,14 @@ function LeadCard({
             {!lead.hasOutcome && (
               <>
                 <button
-                  onClick={() => onAction('quoted')}
+                  onClick={() => onAction('evaluated')}
                   disabled={actionLoading}
                   className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
                   <CheckCircle className="w-3.5 h-3.5 inline mr-1" />Quote
                 </button>
                 <button
-                  onClick={() => onAction('site_visited')}
+                  onClick={() => onAction('inspected')}
                   disabled={actionLoading}
                   className="px-3 py-1.5 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
                 >
@@ -754,14 +754,14 @@ function LeadDetailModal({
               Follow Up
             </button>
             <button
-              onClick={() => onAction('quoted')}
+              onClick={() => onAction('evaluated')}
               disabled={actionLoading}
               className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
               Will Quote
             </button>
             <button
-              onClick={() => onAction('site_visited')}
+              onClick={() => onAction('inspected')}
               disabled={actionLoading}
               className="px-4 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
             >

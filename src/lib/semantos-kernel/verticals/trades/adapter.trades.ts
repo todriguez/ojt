@@ -73,7 +73,7 @@ export class TradesSemanticAdapter extends SemanticAdapter {
     const typeHash = this._computeTypeHash("job", jobType);
     const typePath = `trades.job.${jobType}`;
 
-    const ctx = await this.ensureObject("job", typeHash, typePath, ownerId);
+    const ctx = await this.ensureObject("job", typeHash, typePath, ownerId, jobId);
 
     // Create tradesJobs projection row
     try {

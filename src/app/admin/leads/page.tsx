@@ -170,7 +170,7 @@ function LeadCard({
 
       {/* Row 5: Actions */}
       <div className="flex flex-wrap gap-2">
-        {["followed_up", "quoted", "booked", "site_visited", "declined"].map((action) => (
+        {["followed_up", "evaluated", "committed", "inspected", "declined"].map((action) => (
           <button
             key={action}
             onClick={() => onAction(lead.id, action)}
@@ -182,9 +182,9 @@ function LeadCard({
             } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {action === "followed_up" ? "Follow Up" :
-             action === "quoted" ? "Quote" :
-             action === "booked" ? "Book" :
-             action === "site_visited" ? "Site Visit" :
+             action === "evaluated" ? "Quote" :
+             action === "committed" ? "Book" :
+             action === "inspected" ? "Site Visit" :
              "Decline"}
           </button>
         ))}

@@ -23,7 +23,7 @@ import type { AccumulatedJobState } from "@/lib/ai/extractors/extractionSchema";
 
 const actionSchema = z.object({
   action: z.enum([
-    "followed_up", "quoted", "booked", "site_visited",
+    "followed_up", "evaluated", "committed", "inspected",
     "declined", "archived", "deferred",
   ]),
   notes: z.string().optional(),
@@ -32,9 +32,9 @@ const actionSchema = z.object({
 // Maps action → new job status
 const ACTION_STATUS_MAP: Record<string, string> = {
   followed_up: "ready_for_review",
-  quoted: "estimate_presented",
-  booked: "scheduled",
-  site_visited: "needs_site_visit",
+  evaluated: "estimate_presented",
+  committed: "scheduled",
+  inspected: "needs_site_visit",
   declined: "not_a_fit",
   archived: "archived",
   deferred: "", // no status change

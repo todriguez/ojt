@@ -29,9 +29,9 @@ import type {
 /** Human decision enum values from the DB schema */
 export type HumanDecision =
   | "followed_up"
-  | "quoted"
-  | "booked"
-  | "site_visited"
+  | "evaluated"
+  | "committed"
+  | "inspected"
   | "declined"
   | "archived"
   | "referred_out"
@@ -40,15 +40,15 @@ export type HumanDecision =
 
 /** Actual outcome enum values from the DB schema */
 export type ActualOutcome =
-  | "completed_paid"
-  | "completed_disputed"
-  | "booked_cancelled"
-  | "quoted_rejected"
-  | "quoted_ghosted"
-  | "site_visit_declined"
-  | "site_visit_booked"
-  | "customer_went_elsewhere"
-  | "customer_ghosted"
+  | "completed"
+  | "disputed"
+  | "cancelled"
+  | "rejected"
+  | "evaluated_unresponsive"
+  | "inspected_declined"
+  | "inspected_committed"
+  | "diverted"
+  | "unresponsive"
   | "not_pursued"
   | "still_active";
 
@@ -357,9 +357,9 @@ const RECOMMENDATION_RANK: Record<SystemRecommendation, number> = {
 
 /** Map human decisions to an action spectrum */
 const DECISION_RANK: Record<HumanDecision, number> = {
-  booked: 7,
-  site_visited: 6,
-  quoted: 5,
+  committed: 7,
+  inspected: 6,
+  evaluated: 5,
   followed_up: 4,
   deferred: 3,
   referred_out: 2,
@@ -370,16 +370,16 @@ const DECISION_RANK: Record<HumanDecision, number> = {
 
 /** Map actual outcomes to a positivity spectrum */
 const OUTCOME_RANK: Record<ActualOutcome, number> = {
-  completed_paid: 7,
-  site_visit_booked: 6,
+  completed: 7,
+  inspected_committed: 6,
   still_active: 5,
-  quoted_rejected: 3,
-  quoted_ghosted: 2,
-  site_visit_declined: 2,
-  booked_cancelled: 2,
-  completed_disputed: 2,
-  customer_went_elsewhere: 1,
-  customer_ghosted: 1,
+  rejected: 3,
+  evaluated_unresponsive: 2,
+  inspected_declined: 2,
+  cancelled: 2,
+  disputed: 2,
+  diverted: 1,
+  unresponsive: 1,
   not_pursued: 0,
 };
 
