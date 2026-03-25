@@ -272,6 +272,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get("jobId");
+    const channelId = searchParams.get("channelId");
 
     if (!jobId) {
       return NextResponse.json(
@@ -280,7 +281,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { eq } = await import("drizzle-orm");
+    const { eq, and } = await import("drizzle-orm");
     const { getDb } = await import("@/lib/db/client");
     const schema = await import("@/lib/db/schema");
     const { checkJobOwnership } = await import("@/lib/middleware/withOwnershipCheck");
@@ -291,16 +292,42 @@ export async function GET(request: NextRequest) {
 
     const db = await getDb();
 
+    // Privacy guard: if job has channels, channelId is required for non-admin sessions
+    const isAdmin = request.headers.get("x-session-type") === "admin";
+    if (!channelId && !isAdmin) {
+      try {
+        const { ensureSemanticObject } = await import("@/lib/domain/bridge/semanticRuntimeAdapter");
+        const { getChannelsForObject } = await import("@/lib/semantos-kernel/channelService");
+        const jobRows = await db.select().from(schema.jobs).where(eq(schema.jobs.id, jobId)).limit(1);
+        if (jobRows.length > 0) {
+          const semCtx = await ensureSemanticObject(db, jobId, jobRows[0].jobType);
+          const jobChannels = await getChannelsForObject(semCtx.semanticObjectId);
+          if (jobChannels.length > 0) {
+            return NextResponse.json(
+              { error: "channelId is required for this job" },
+              { status: 400 }
+            );
+          }
+        }
+      } catch {
+        // If semantic object doesn't exist, fall through to unscoped query
+      }
+    }
+
+    // Build query: scope by channelId if provided
+    const whereClause = channelId
+      ? and(eq(schema.messages.jobId, jobId), eq(schema.messages.channelId, channelId))
+      : eq(schema.messages.jobId, jobId);
+
     const messages = await db
       .select()
       .from(schema.messages)
-      .where(
-        eq(schema.messages.jobId, jobId)
-      )
+      .where(whereClause)
       .orderBy(schema.messages.createdAt);
 
     return NextResponse.json({
       jobId,
+      channelId,
       messages: messages.map((m: any) => ({
         id: m.id,
         senderType: m.senderType,

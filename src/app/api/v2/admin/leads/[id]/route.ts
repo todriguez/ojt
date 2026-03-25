@@ -92,6 +92,27 @@ export async function GET(
       // No estimates
     }
 
+    // ── Channels ────────────────────────────
+    let channelsData: any[] = [];
+    try {
+      const { ensureSemanticObject } = await import("@/lib/domain/bridge/semanticRuntimeAdapter");
+      const { getChannelsForObject, getParticipants } = await import("@/lib/semantos-kernel/channelService");
+      const semCtx = await ensureSemanticObject(db, id, job.jobType);
+      const allChannels = await getChannelsForObject(semCtx.semanticObjectId);
+      const allParticipants = await getParticipants(semCtx.semanticObjectId);
+      channelsData = allChannels.map((ch: any) => ({
+        id: ch.id,
+        kind: ch.channelKind,
+        label: ch.label,
+        participants: (ch.participantIds as string[]).map((pid: string) => {
+          const p = allParticipants.find((pp: any) => pp.id === pid);
+          return p ? { id: p.id, identityRef: p.identityRef, role: p.participantRole, displayName: p.displayName } : { id: pid };
+        }),
+      }));
+    } catch {
+      // No semantic object yet — channels not available
+    }
+
     return NextResponse.json({
       job: {
         id: job.id,
@@ -129,6 +150,7 @@ export async function GET(
         isRepeat: job.isRepeatCustomer,
         previousJobs: [],
       },
+      channels: channelsData,
       scheduleContext: null,
       policyVersion: 1, // Will come from getActivePolicy once wired
     });
