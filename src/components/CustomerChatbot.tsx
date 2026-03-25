@@ -313,6 +313,11 @@ export default function CustomerChatbot() {
         localStorage.setItem(STORAGE_KEY, data.jobId);
       }
 
+      // Store auto-created channelId for subsequent messages
+      if (data.channelId && !channelId) {
+        setChannelId(data.channelId);
+      }
+
       // Track conversation phase for triggering phone verification
       if (data.conversationPhase) {
         setConversationPhase(data.conversationPhase);

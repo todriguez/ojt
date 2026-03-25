@@ -98,6 +98,59 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       reason: "Created from PDF import",
     });
 
+    // ── Semantic layer: create object + participant channels ──
+    let channelId: string | undefined;
+    try {
+      const { ensureSemanticObject } = await import("@/lib/domain/bridge/semanticRuntimeAdapter");
+      const { addParticipantWithChannel } = await import("@/lib/semantos-kernel/channelService");
+      const { seedTradesPolicyTemplates, getPolicyTemplateForScenario } = await import("@/lib/semantos-kernel/verticals/trades/policies.trades");
+      const { assignChannelPolicy, getActivePolicyTemplate } = await import("@/lib/semantos-kernel/channelService");
+
+      // Seed policy templates (idempotent — hard dependency, not lazy)
+      await seedTradesPolicyTemplates();
+
+      const semCtx = await ensureSemanticObject(db, jobId, (jobState.jobType as string) || "general");
+      const objectId = semCtx.semanticObjectId;
+
+      // Create tenant/customer participant + channel
+      if (customerId) {
+        const { channel, participant } = await addParticipantWithChannel({
+          objectId,
+          identityRef: `customer:${customerId}`,
+          identityKind: "customer",
+          participantRole: "contributor",
+          displayName: jobState.customerName || undefined,
+        });
+        channelId = channel.id;
+
+        // Assign policy based on scenario
+        const templateName = getPolicyTemplateForScenario("agent_pdf");
+        const template = await getActivePolicyTemplate("trades", templateName);
+        if (template) {
+          await assignChannelPolicy({ channelId: channel.id, policyId: template.id, participantId: participant.id });
+        }
+      }
+
+      // Create REA/agent participant + channel if agent info exists
+      if (jobState.referringAgentEmail || jobState.referringAgentPhone) {
+        const agentRef = jobState.referringAgentEmail
+          ? `email:${jobState.referringAgentEmail}`
+          : `phone:${jobState.referringAgentPhone}`;
+        await addParticipantWithChannel({
+          objectId,
+          identityRef: agentRef,
+          identityKind: "external",
+          participantRole: "creator",
+          displayName: jobState.referringAgentName || "Property Agent",
+        });
+      }
+
+      log.info({ jobId, channelId, objectId }, "import-job.channels.created");
+    } catch (err) {
+      log.warn({ err, jobId }, "import-job.channels.failed");
+      // Non-fatal: job exists, channels can be created later
+    }
+
     // Build the opening AI message that summarises the extraction
     const taskSummary = jobState.importedTasks
       .map((t) => t.description)
@@ -116,13 +169,14 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       }
     }
 
-    // Insert the opening message
+    // Insert the opening message (in the tenant's channel if available)
     await db.insert(messages).values({
       jobId,
       customerId: customerId || undefined,
       senderType: "ai",
       messageType: "text",
       rawContent: openingMessage,
+      channelId: channelId || undefined,
     });
 
     log.info(
@@ -134,6 +188,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       success: true,
       jobId,
       customerId,
+      channelId,
       openingMessage,
     });
   } catch (error) {

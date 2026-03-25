@@ -66,6 +66,7 @@ export interface ChatInput {
 export interface ChatResult {
   reply: string;
   jobId: string; // May differ from input if job pivot created a new job
+  channelId?: string; // Auto-created channel for this participant
   extraction: MessageExtraction;
   jobState: AccumulatedJobState;
   conversationPhase: string;
@@ -124,6 +125,30 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
   let semCtx: SemanticJobContext = await ensureSemanticObject(
     db, input.jobId, job.jobType ?? null
   );
+
+  // ── Auto-create channel if not already provided ──
+  if (!input.channelId && custId) {
+    try {
+      const { addParticipantWithChannel, getChannelForParticipant } = await import("@/lib/semantos-kernel/channelService");
+      const identityRef = `customer:${custId}`;
+      // Check if channel already exists for this participant
+      const existingChannel = await getChannelForParticipant(semCtx.semanticObjectId, identityRef);
+      if (existingChannel) {
+        input.channelId = existingChannel.id;
+      } else {
+        const { channel } = await addParticipantWithChannel({
+          objectId: semCtx.semanticObjectId,
+          identityRef,
+          identityKind: "customer",
+          participantRole: "creator",
+        });
+        input.channelId = channel.id;
+      }
+    } catch (err) {
+      console.warn("chat.channel.auto_create_failed", err);
+      // Non-fatal: continue without channelId
+    }
+  }
 
   // ── Semantic layer: record customer message as evidence ──
   recordEvidence(db, semCtx, savedMsg.id, input.message, "customer");
@@ -433,6 +458,7 @@ export async function processCustomerMessage(input: ChatInput): Promise<ChatResu
   return {
     reply,
     jobId: input.jobId,
+    channelId: input.channelId,
     extraction,
     jobState: mergedState,
     conversationPhase: extraction.conversationPhase,

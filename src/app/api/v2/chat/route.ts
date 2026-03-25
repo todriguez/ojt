@@ -181,6 +181,7 @@ async function handleFullPipeline(
   return NextResponse.json({
     reply: result.reply,
     jobId: finalJobId,
+    channelId: result.channelId,
     conversationPhase: result.conversationPhase,
     completenessScore: result.completenessScore,
     estimatePresented: result.estimatePresented,
