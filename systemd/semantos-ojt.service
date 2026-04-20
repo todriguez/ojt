@@ -1,0 +1,20 @@
+[Unit]
+Description=OJT (Oddjob Todd) — Next.js intake bot
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=semantos
+Group=semantos
+WorkingDirectory=/opt/ojt
+EnvironmentFile=/etc/semantos/env.shared
+EnvironmentFile=/etc/semantos/ojt.env
+ExecStart=/usr/bin/pnpm start
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/semantos/ojt.log
+StandardError=append:/var/log/semantos/ojt.log
+
+[Install]
+WantedBy=multi-user.target

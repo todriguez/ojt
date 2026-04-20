@@ -1,0 +1,6 @@
+# direnv config — for installing @semantos/* packages from GitHub Packages.
+# Copy to .envrc (gitignored), fill in, then: direnv allow
+#
+# The GITHUB_TOKEN must be a classic PAT with `read:packages` scope.
+# Create at: https://github.com/settings/tokens/new?scopes=read:packages
+export GITHUB_TOKEN=""

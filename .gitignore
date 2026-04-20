@@ -42,3 +42,10 @@ next-env.d.ts
 
 # PGlite local database
 /pglite-data*
+
+# direnv
+.envrc
+!.envrc.example
+
+# dev tool state
+.claude/
