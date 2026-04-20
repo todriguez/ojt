@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.env*
+!.env.local.example
+pglite-data*
+tests
+e2e
+coverage
+npm-debug.log
+yarn-debug.log
+.vscode
+.idea

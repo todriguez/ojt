@@ -625,9 +625,27 @@ export interface HandleTenantMessageResult {
   jobId: string;
 }
 
+// Test-only override hook. When set (via __setHandleTenantMessageForTests)
+// /api/v3/chat runs this instead of the real pipeline. Production code
+// must never touch it; the real implementation is exported unchanged.
+let _handleTenantMessageOverride:
+  | ((input: HandleTenantMessageInput) => Promise<HandleTenantMessageResult>)
+  | null = null;
+
+export function __setHandleTenantMessageForTests(
+  fn:
+    | ((input: HandleTenantMessageInput) => Promise<HandleTenantMessageResult>)
+    | null,
+): void {
+  _handleTenantMessageOverride = fn;
+}
+
 export async function handleTenantMessage(
   input: HandleTenantMessageInput,
 ): Promise<HandleTenantMessageResult> {
+  if (_handleTenantMessageOverride) {
+    return _handleTenantMessageOverride(input);
+  }
   const db = await getDb();
 
   // Resolve-or-create a job for this tenant. P5 will rework this to

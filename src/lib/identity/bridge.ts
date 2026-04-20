@@ -20,7 +20,7 @@
 
 import { StubSigner, type Signer, type CertRecord } from "@semantos/session-protocol";
 
-import type { OjtIdentity } from "./identity.js";
+import type { OjtIdentity } from "./identity";
 
 /**
  * Convert an OjtIdentity into a CertRecord suitable for the known-cert

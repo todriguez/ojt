@@ -6,13 +6,18 @@
  * phone.ts / derive.ts / identity.ts / bridge.ts / store.ts elsewhere.
  */
 
-import "./secp256k1-setup.js";
+// NB: imports are extensionless — Next.js webpack resolves through
+// tsconfig `moduleResolution: bundler` but rejects `.js` suffixes on
+// `.ts` files when building the app/api bundles. The tsx-based test
+// runner is happy with both.
 
-export type { OjtIdentity } from "./identity.js";
-export type { OjtRole } from "./phone.js";
+import "./secp256k1-setup";
 
-export { normalizePhone, certIdFromPhone } from "./phone.js";
-export { derivePubkeyHexFromPhone } from "./derive.js";
-export { loadAdminIdentity, phoneToIdentity } from "./identity.js";
-export { identityToCertRecord, createOjtSigner } from "./bridge.js";
-export { bootKnownCertStore, loadReaPeersFromEnv } from "./store.js";
+export type { OjtIdentity } from "./identity";
+export type { OjtRole } from "./phone";
+
+export { normalizePhone, certIdFromPhone } from "./phone";
+export { derivePubkeyHexFromPhone } from "./derive";
+export { loadAdminIdentity, phoneToIdentity } from "./identity";
+export { identityToCertRecord, createOjtSigner } from "./bridge";
+export { bootKnownCertStore, loadReaPeersFromEnv } from "./store";

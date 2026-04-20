@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pino", "pino-pretty"],
+  serverExternalPackages: ["pino", "pino-pretty", "libphonenumber-js"],
   async headers() {
     return [
       {

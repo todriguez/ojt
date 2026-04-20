@@ -22,9 +22,9 @@ import {
   type KnownCertStore,
 } from "@semantos/session-protocol";
 
-import type { OjtIdentity } from "./identity.js";
-import { identityToCertRecord } from "./bridge.js";
-import { phoneToIdentity } from "./identity.js";
+import type { OjtIdentity } from "./identity";
+import { identityToCertRecord } from "./bridge";
+import { phoneToIdentity } from "./identity";
 
 export interface BootKnownCertStoreOpts {
   adminId: OjtIdentity;
