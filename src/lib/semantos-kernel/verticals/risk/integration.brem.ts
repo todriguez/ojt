@@ -222,7 +222,8 @@ export class BremSemanticBridge {
     let gateId: string | undefined;
 
     if (activeGate) {
-      gateId = activeGate.id;
+      const activeGateId: string = activeGate.id;
+      gateId = activeGateId;
 
       // If score changed from gate open → this is a challenge
       // If score stayed the same → this is confirmation with additional evidence
@@ -230,11 +231,11 @@ export class BremSemanticBridge {
 
       // First advance to interrogating if still in opened
       if (activeGate.status === "opened") {
-        await this.adapter.advanceGate(gateId, "interrogating");
+        await this.adapter.advanceGate(activeGate.id, "interrogating");
       }
 
       await this.adapter.resolveGate(objectId, {
-        gateId,
+        gateId: activeGateId,
         resolution,
         resolvedByParticipantId: participantId,
         resolutionChannelId: channelId,
