@@ -8,9 +8,15 @@
  * lowercase hex — 64 chars.
  */
 
-import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import { parsePhoneNumberFromString } from "libphonenumber-js/core";
+// Import metadata explicitly to work around a libphonenumber-js ESM/CJS
+// interop quirk in tsx where the packaged `metadata.min.json.js` module's
+// default export surfaces as `{ default: {...} }` inside the lib's own
+// internal `call()` helper. Going through `/core` with an explicit
+// metadata arg sidesteps that code path entirely.
+import metadata from "libphonenumber-js/metadata.min.json" with { type: "json" };
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 
 export type OjtRole = "tenant" | "rea";
 
@@ -30,9 +36,21 @@ export function normalizePhone(
   if (typeof raw !== "string" || raw.trim().length === 0) {
     throw new Error("normalizePhone: empty input");
   }
+  // libphonenumber-js treats `undefined` as "no default country" — required
+  // for already-E.164 inputs. Passing the AU default for such inputs is
+  // harmless, but we only supply a default for non-E.164 strings to avoid
+  // an internal ReferenceError on some builds.
+  const trimmed = raw.trim();
+  const looksInternational = trimmed.startsWith("+");
+  // libphonenumber-js ignores `defaultCountry` when the input is already
+  // in E.164. For E.164 inputs pass an empty options object so we don't
+  // accidentally validate the parse against an unrelated country.
   const parsed = parsePhoneNumberFromString(
-    raw,
-    defaultCountry as Parameters<typeof parsePhoneNumberFromString>[1],
+    trimmed,
+    looksInternational
+      ? {}
+      : (defaultCountry as Parameters<typeof parsePhoneNumberFromString>[1]),
+    metadata,
   );
   if (!parsed || !parsed.isValid()) {
     throw new Error(`normalizePhone: invalid phone number: ${raw}`);

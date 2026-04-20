@@ -15,7 +15,7 @@
  */
 
 import { deriveBCABytes, bcaBytesToIPv6 } from "@semantos/session-protocol";
-import { hexToBytes } from "@noble/hashes/utils";
+import { hexToBytes } from "@noble/hashes/utils.js";
 
 import { certIdFromPhone, normalizePhone, type OjtRole } from "./phone.js";
 import { derivePubkeyHexFromPhone } from "./derive.js";

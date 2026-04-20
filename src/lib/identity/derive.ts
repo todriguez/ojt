@@ -13,9 +13,11 @@
  * a future Plexus SDK where user privkeys live client-side.
  */
 
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
+import "./secp256k1-setup.js";
+
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { getPublicKey } from "@noble/secp256k1";
 
 import type { OjtRole } from "./phone.js";

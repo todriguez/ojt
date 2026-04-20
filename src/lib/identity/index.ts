@@ -6,6 +6,8 @@
  * phone.ts / derive.ts / identity.ts / bridge.ts / store.ts elsewhere.
  */
 
+import "./secp256k1-setup.js";
+
 export type { OjtIdentity } from "./identity.js";
 export type { OjtRole } from "./phone.js";
 
