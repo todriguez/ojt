@@ -28,6 +28,8 @@ import {
   text,
   varchar,
   integer,
+  bigint,
+  smallint,
   boolean,
   timestamp,
   jsonb,
@@ -276,6 +278,12 @@ export const objectPatches = pgTable(
     consumed: boolean("consumed").notNull().default(true),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
 
+    // ── Federation fields (nullable, backfilled for legacy rows) ──
+    timestamp: bigint("timestamp", { mode: "number" }),       // unix ms — nullable, backfilled for legacy
+    facetId: text("facet_id"),                                // who authored (hat/facet string)
+    facetCapabilities: integer("facet_capabilities").array(), // Postgres integer[]
+    lexicon: varchar("lexicon", { length: 100 }),             // 'jural' | 'property-management' | ...
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -283,6 +291,39 @@ export const objectPatches = pgTable(
     index("sem_patches_kind_idx").on(table.patchKind),
     index("sem_patches_new_hash_idx").on(table.newStateHash),
   ]
+);
+
+// ═══ A.4b SIGNED BUNDLES ═════════════════════════════════════════════════════
+// Federation signing envelopes for object patches.
+// Each bundle records a signer (and optional recipient) cryptographic identity
+// and the signature over a patch, for inbound or outbound federation flows.
+
+export const semSignedBundles = pgTable(
+  "sem_signed_bundles",
+  {
+    id: text("id").primaryKey(),
+    patchId: text("patch_id")
+      .notNull()
+      .references(() => objectPatches.id, { onDelete: "cascade" }),
+    bundleVersion: smallint("bundle_version").notNull().default(1),
+    // Signer (always present)
+    signerBca: varchar("signer_bca", { length: 45 }).notNull(),
+    signerPubkeyHex: varchar("signer_pubkey_hex", { length: 66 }).notNull(),
+    signerCertId: varchar("signer_cert_id", { length: 64 }),
+    // Recipient (optional)
+    recipientBca: varchar("recipient_bca", { length: 45 }),
+    recipientPubkeyHex: varchar("recipient_pubkey_hex", { length: 66 }),
+    recipientCertId: varchar("recipient_cert_id", { length: 64 }),
+    signature: varchar("signature", { length: 144 }).notNull(),
+    signedAt: timestamp("signed_at", { withTimezone: false }).notNull(),
+    direction: varchar("direction", { length: 10 }).notNull(), // 'inbound' | 'outbound' — CHECK appended in migration
+    verified: boolean("verified").default(false),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (t) => ({
+    patchIdx: index("sem_signed_bundles_patch_idx").on(t.patchId),
+    directionIdx: index("sem_signed_bundles_direction_idx").on(t.direction),
+  })
 );
 
 // ═══ A.5 OBJECT BINDINGS ═════════════════════════════════════════════════════
