@@ -53,7 +53,14 @@ import {
 } from "../domain/bridge/semanticRuntimeAdapter";
 import { objectPatches } from "../semantos-kernel/schema.core";
 import { formatHistoryBlock, listRecentPatches } from "./patchChain";
-import { runHandleMessage } from "./ojtHandleMessage";
+import {
+  buildProposedSlotClassifier,
+  runHandleMessage,
+} from "./ojtHandleMessage";
+import { getCalendarGuard } from "../calendar/guard";
+import type { ProposedSlot } from "@semantos/intent";
+import { bookSlot } from "@semantos/calendar-ext";
+import { getCalendarDb } from "../calendar/db";
 import type { LexiconName, TaggedFact } from "../lexicons";
 import {
   validateAgainstLexicon,
@@ -637,6 +644,22 @@ export interface HandleTenantMessageInput {
   identity: { facetId: string; certId: string };
   message: string;
   jobId?: string;
+  /**
+   * A5: optional time slot the tenant is proposing for this turn.
+   * When supplied AND the calendar guard is enabled, the wired
+   * classifier emits an Intent carrying this slot in its delta — the
+   * orchestrator then runs the guard before any LLM work. In production
+   * this is filled in by an upstream extractor (LLM with prompt §6
+   * guidance); test gates pass it directly.
+   */
+  proposedSlot?: ProposedSlot;
+  /**
+   * A5: when the happy-path proposal should atomically book the slot
+   * after the LLM confirms. Tests set this to true to exercise G2's
+   * cal_bookings write; production wires it from a downstream
+   * confirmation classifier (deferred to A5.3).
+   */
+  confirmBooking?: boolean;
 }
 
 export interface HandleTenantMessageResult {
@@ -714,11 +737,22 @@ export async function handleTenantMessage(
   const chain = await listRecentPatches(semObjectId, n);
   const historyBlock = formatHistoryBlock(chain);
 
-  // ── 2. Run handleMessage to get triage hint ───────────────────
+  // ── 2. Resolve A5 calendar guard (singleton; null when flag off) ─
+  const calendarGuard = await getCalendarGuard();
+
+  // ── 2a. Run handleMessage to get triage hint ──────────────────
+  // When the caller supplied a proposedSlot we wire a classifier that
+  // carries it in the Intent's delta so the orchestrator's guard step
+  // can fire. Otherwise we fall through to the default rules-only
+  // classifier and the guard is a no-op.
   const triage = await runHandleMessage({
     objectId: semObjectId,
     identity: input.identity,
     message: input.message,
+    calendarGuard: calendarGuard ?? undefined,
+    classifier: input.proposedSlot
+      ? buildProposedSlotClassifier(input.proposedSlot)
+      : undefined,
   });
 
   // ── 3. NO_INTENT short-circuit — no LLM, no patches ───────────
@@ -729,6 +763,57 @@ export async function handleTenantMessage(
     };
   }
 
+  // ── 3b. A5: REJECT_CONFLICT short-circuit ─────────────────────
+  // The guard reported the proposed slot collides with a booking
+  // (or live hold) on the schedule. Skip the LLM entirely — render
+  // the conflict + free windows, persist a conflict patch, and return.
+  if (triage.triageHint === "REJECT_CONFLICT") {
+    const raw = triage.raw as Extract<
+      typeof triage.raw,
+      { kind: "reject_conflict" }
+    >;
+    const replyMsg = formatConflictReply(raw);
+    await persistTurnPatch({
+      objectId: semObjectId,
+      identity: input.identity,
+      // 'calendar' isn't in OJT's LexiconName union (jural | property-
+      // management) but the underlying sem_object_patches.lexicon
+      // column is varchar(100) — federation consumers filter by string
+      // match. Cast through the local alias for the call site.
+      lexicon: "calendar" as unknown as LexiconName,
+      delta: {
+        verb: "conflict",
+        proposedSlot: serializeSlot(raw.proposedSlot),
+        conflictingBookings: raw.conflictingBookings.map((b) => ({
+          id: b.id,
+          hatId: b.hatId,
+          startAt:
+            b.startAt instanceof Date
+              ? b.startAt.toISOString()
+              : String(b.startAt),
+          endAt:
+            b.endAt instanceof Date
+              ? b.endAt.toISOString()
+              : String(b.endAt),
+          subjectKind: b.subjectKind,
+          subjectId: b.subjectId,
+        })),
+        freeWindows: raw.freeWindows.slice(0, 3).map((w) => ({
+          startAt:
+            w.startAt instanceof Date
+              ? w.startAt.toISOString()
+              : String(w.startAt),
+          endAt:
+            w.endAt instanceof Date
+              ? w.endAt.toISOString()
+              : String(w.endAt),
+        })),
+      },
+      source: `handleMessage:${triage.correlationId}`,
+    });
+    return { reply: replyMsg, jobId };
+  }
+
   // ── 4. Run existing LLM pipeline (extraction + scoring + chat) ─
   const result = await processCustomerMessage({
     jobId,
@@ -736,6 +821,38 @@ export async function handleTenantMessage(
     message: input.message,
     historyBlock,
   });
+
+  // ── 4a. A5: atomic bookSlot on happy-path proposal confirmation ─
+  // When the caller flagged confirmBooking AND the guard didn't reject,
+  // book the slot now. We deliberately put the bookSlot call BEFORE the
+  // turn-patch persist below so a booking failure aborts the whole turn
+  // (caller sees a 500; no half-written state). The booking itself is
+  // an `appendPatch` on the schedule sem_object so it shares the
+  // calendar DB's transaction semantics; we don't bracket it with
+  // OJT's main DB because they're separate databases by design.
+  if (input.proposedSlot && input.confirmBooking && calendarGuard) {
+    try {
+      const calDb = await getCalendarDb();
+      await bookSlot(calDb as never, {
+        hatId: input.proposedSlot.hatId,
+        startAt: input.proposedSlot.startAt,
+        endAt: input.proposedSlot.endAt,
+        subjectKind: input.proposedSlot.subjectKind,
+        subjectId: input.proposedSlot.subjectId,
+        bookedByCertId:
+          input.proposedSlot.proposedByCertId || input.identity.certId,
+        scheduleObjectId: process.env.CAL_SCHEDULE_OBJECT_ID,
+      });
+    } catch (err) {
+      // Hard failure per A5 §2: rollback the chat turn. Throwing here
+      // bubbles to /api/v3/chat which returns a 500 with detail.
+      throw new Error(
+        `bookSlot failed for proposedSlot: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   // ── 4b. OJT-P6: validate lexicon-tagged facts, one re-prompt on failure ─
   // The extractor LLM emits taggedFacts alongside the usual fields.
@@ -1084,4 +1201,68 @@ async function persistTurnPatch(input: PersistTurnPatchInput): Promise<void> {
 // recordStateSnapshot's internal reference. Aliased at the bottom to
 // keep the import block at the top stable for diff readability.
 import { semanticObjects as semanticObjectsTable } from "../semantos-kernel/schema.core";
+
+// ─────────────────────────────────────────────
+// A5 helpers — conflict reply formatter + slot serializer
+// ─────────────────────────────────────────────
+
+/**
+ * Format the user-facing conflict message per A5 §2. Lists at most
+ * three free windows so the reply doesn't overwhelm. Times rendered in
+ * Australia/Brisbane TZ to match the operator's locale.
+ */
+export function formatConflictReply(rejection: {
+  proposedSlot: ProposedSlot;
+  conflictingBookings: ReadonlyArray<{ subjectKind: string }>;
+  freeWindows: ReadonlyArray<{ startAt: Date | string; endAt: Date | string }>;
+}): string {
+  const startAt = formatBrisbane(rejection.proposedSlot.startAt);
+  const subjectKind =
+    rejection.conflictingBookings[0]?.subjectKind ?? "commitment";
+  const windows = rejection.freeWindows.slice(0, 3);
+  const windowLines =
+    windows.length === 0
+      ? "  (no free slots in the next 3 weeks — try a date further out)"
+      : windows
+          .map(
+            (w) =>
+              `  • ${
+                w.startAt instanceof Date
+                  ? w.startAt.toISOString()
+                  : String(w.startAt)
+              }`,
+          )
+          .join("\n");
+  return `Sorry, Todd isn't free ${startAt}.\nHe's committed to another ${subjectKind}. Some free slots:\n${windowLines}`;
+}
+
+function formatBrisbane(d: Date | string): string {
+  const date = d instanceof Date ? d : new Date(d);
+  try {
+    return new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Brisbane",
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    return date.toISOString();
+  }
+}
+
+function serializeSlot(slot: ProposedSlot): Record<string, unknown> {
+  return {
+    startAt:
+      slot.startAt instanceof Date ? slot.startAt.toISOString() : slot.startAt,
+    endAt:
+      slot.endAt instanceof Date ? slot.endAt.toISOString() : slot.endAt,
+    hatId: slot.hatId,
+    subjectKind: slot.subjectKind,
+    subjectId: slot.subjectId,
+    proposedByCertId: slot.proposedByCertId,
+  };
+}
 
