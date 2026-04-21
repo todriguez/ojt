@@ -29,9 +29,12 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 
 import {
+  StubSigner,
   BsvSdkVerifier,
+  signBundle,
   verifyBundleWithTrust,
   createInMemoryKnownCertStore,
+  TransportError,
   type SignedBundle,
 } from "@semantos/session-protocol";
 
@@ -52,7 +55,22 @@ const REA_PORT = 19081;
 // deterministic across test files.
 const REA_STUB_PRIVKEY_HEX = "cc".repeat(32);
 
+// An additional "impostor" privkey used in G10 — a second 32-byte
+// scalar, independent of the legitimate REA stub key. Paired with
+// the REA cert id it lets us demonstrate pubkey_cert_mismatch.
+const IMPOSTOR_PRIVKEY_HEX = "dd".repeat(32);
+
+// An entirely unknown-to-OJT privkey used in G9. The matching cert id
+// is NOT added to OJT's trust store — verifyBundleWithTrust must
+// reject with unknown_signer.
+const UNKNOWN_PRIVKEY_HEX = "ee".repeat(32);
+const UNKNOWN_CERT_ID = "unknown-peer-cert";
+
 const HAPPY_OBJECT_ID = "550e8400-e29b-41d4-a716-446655440701";
+// An objectId deliberately omitted from the REA stub's allowlist.
+// G11 asks the stub to respond for this id and expects canSend to
+// deny BEFORE any HTTP call.
+const LEAK_OBJECT_ID = "550e8400-e29b-41d4-a716-446655440799";
 
 const HAS_API_KEY = !!process.env.ANTHROPIC_API_KEY;
 
@@ -109,6 +127,48 @@ afterAll(async () => {
 });
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Sign a payload with an arbitrary privkey + declared cert id. Used by
+ * the attack-vector block (G7-G10) to craft bundles the legitimate REA
+ * stub would never produce.
+ */
+async function signAs(
+  privkeyHex: string,
+  certId: string,
+  payload: ReaPatchPayload,
+  recipient: { certId: string; pubkeyHex: string },
+): Promise<SignedBundle<ReaPatchPayload>> {
+  const signer = new StubSigner(privkeyHex, certId);
+  const signed = await signBundle(payload, signer, { recipient });
+  // Force certId on the envelope — StubSigner supplies it, but belt
+  // + braces for adapters that might not.
+  signed.signer.certId = certId;
+  return signed;
+}
+
+/** Build a REA-stub-shaped payload for an objectId — used by attack tests. */
+function reaPayload(objectId: string): ReaPatchPayload {
+  return {
+    objectId,
+    patches: [
+      {
+        objectId,
+        fromVersion: 2,
+        toVersion: 3,
+        prevStateHash: "c".repeat(64),
+        newStateHash: "d".repeat(64),
+        patchKind: "state_transition",
+        delta: { status: { from: "quoted", to: "scheduled" } },
+        deltaCount: 1,
+        source: "rea:e2e-attack",
+        timestamp: Date.now(),
+        facetId: "rea:stub",
+        lexicon: "jural",
+      },
+    ],
+  };
+}
 
 /** Manually insert a patch row so G3-G6 don't need the LLM path. */
 async function seedPatch(objectId: string): Promise<string> {
@@ -371,3 +431,150 @@ describe("G3-G6 federation happy path (manual patch seeding)", () => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════
+// G7-G13 — Attack vectors (no LLM needed)
+// ═══════════════════════════════════════════════════════════════
+
+describe("G7-G13 attack vectors", () => {
+  test("G7: flipped payload byte → 400 invalid_signature", async () => {
+    const payload = reaPayload(HAPPY_OBJECT_ID);
+    const bundle = await signAs(
+      REA_STUB_PRIVKEY_HEX,
+      rea.certId,
+      payload,
+      { certId: ojt.ojtCertRecord.certId, pubkeyHex: ojt.ojtCertRecord.publicKeyHex },
+    );
+    // Tamper AFTER signing — flip the documentId (objectId)'s first
+    // char. Sig is now over the pre-tamper bytes → must fail.
+    bundle.payload.objectId =
+      "X" + bundle.payload.objectId.slice(1);
+
+    const res = await fetch(`${ojt.baseUrl}/api/v3/federation/bundle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(bundle),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe("invalid_signature");
+  });
+
+  test("G8: swap recipient certId post-signing → 400 invalid_signature", async () => {
+    const payload = reaPayload(HAPPY_OBJECT_ID);
+    const bundle = await signAs(
+      REA_STUB_PRIVKEY_HEX,
+      rea.certId,
+      payload,
+      { certId: ojt.ojtCertRecord.certId, pubkeyHex: ojt.ojtCertRecord.publicKeyHex },
+    );
+    // Swap recipient.certId to something else — recipient is part of
+    // the signed preimage in Slice 5c, so the sig MUST now fail.
+    bundle.recipient = {
+      certId: "some-other-cert",
+      pubkeyHex: ojt.ojtCertRecord.publicKeyHex,
+    };
+
+    const res = await fetch(`${ojt.baseUrl}/api/v3/federation/bundle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(bundle),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    // Could be invalid_signature (preimage mismatch) OR
+    // expected_recipient_mismatch (if that gate fires first).
+    // Both are valid rejection modes — assert on the broader set.
+    expect(["invalid_signature", "expected_recipient_mismatch"]).toContain(
+      body.code,
+    );
+  });
+
+  test("G9: unknown-key signer → 400 unknown_signer", async () => {
+    const payload = reaPayload(HAPPY_OBJECT_ID);
+    const bundle = await signAs(
+      UNKNOWN_PRIVKEY_HEX,
+      UNKNOWN_CERT_ID, // Not in OJT's trust store
+      payload,
+      { certId: ojt.ojtCertRecord.certId, pubkeyHex: ojt.ojtCertRecord.publicKeyHex },
+    );
+
+    const res = await fetch(`${ojt.baseUrl}/api/v3/federation/bundle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(bundle),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe("unknown_signer");
+  });
+
+  test("G10: impostor (cert claim + wrong privkey) → pubkey_cert_mismatch", async () => {
+    const payload = reaPayload(HAPPY_OBJECT_ID);
+    // Sign with IMPOSTOR_PRIVKEY_HEX but claim to be rea-stub-cert.
+    // The pubkey embedded in the envelope derives from the impostor
+    // privkey, but the trust store's publicKeyHex for rea-stub-cert
+    // is derived from REA_STUB_PRIVKEY_HEX. Mismatch → rejected
+    // before the sig check runs.
+    const bundle = await signAs(
+      IMPOSTOR_PRIVKEY_HEX,
+      rea.certId,
+      payload,
+      { certId: ojt.ojtCertRecord.certId, pubkeyHex: ojt.ojtCertRecord.publicKeyHex },
+    );
+
+    const res = await fetch(`${ojt.baseUrl}/api/v3/federation/bundle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(bundle),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe("pubkey_cert_mismatch");
+  });
+
+  test("G11: cross-object leak — REA stub canSend denies non-allowlisted objectId", async () => {
+    // LEAK_OBJECT_ID is NOT in rea.allowedObjectIds → canSend denies
+    // BEFORE any HTTP call. The stub throws with `policy_denied` in
+    // the message.
+    await expect(
+      rea.respondWithExecutionPatch(LEAK_OBJECT_ID),
+    ).rejects.toThrow(/canSend denied|policy_denied|not allow/i);
+  });
+
+  test("G12: REA transport send to unregistered cert → recipient_not_registered", async () => {
+    // Construct a bundle addressed to a cert the REA stub's
+    // peerRegistry does not know about.
+    const payload = reaPayload(HAPPY_OBJECT_ID);
+    const bundle = await signAs(
+      REA_STUB_PRIVKEY_HEX,
+      rea.certId,
+      payload,
+      {
+        certId: "totally-not-in-peer-registry",
+        pubkeyHex: "02".repeat(33),
+      },
+    );
+
+    // Using the stub's own HTTP transport — this is the Slice-5d
+    // pre-flight check.
+    await expect(rea.transport.send(bundle)).rejects.toMatchObject({
+      code: "recipient_not_registered",
+    });
+  });
+
+  test("G13: REA transport send to own cert → self_send", async () => {
+    const payload = reaPayload(HAPPY_OBJECT_ID);
+    // Address the bundle to the REA stub itself.
+    const bundle = await signAs(REA_STUB_PRIVKEY_HEX, rea.certId, payload, {
+      certId: rea.certId,
+      pubkeyHex: rea.publicKeyHex,
+    });
+
+    await expect(rea.transport.send(bundle)).rejects.toBeInstanceOf(
+      TransportError,
+    );
+    await expect(rea.transport.send(bundle)).rejects.toMatchObject({
+      code: "self_send",
+    });
+  });
+});
