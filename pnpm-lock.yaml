@@ -24,26 +24,26 @@ importers:
         specifier: ^3.1.0
         version: 3.1.0
       '@semantos/cell-ops':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@semantos/core':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.5.0
+        version: 0.5.0(@bsv/sdk@2.0.13)
       '@semantos/intent':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.5.0
+        version: 0.5.0(@bsv/sdk@2.0.13)
       '@semantos/protocol-types':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.5.0
+        version: 0.5.0(@bsv/sdk@2.0.13)
       '@semantos/semantos-ir':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@semantos/semantos-sir':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.5.0
+        version: 0.5.0
       '@semantos/session-protocol':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.5.0
+        version: 0.5.0(@bsv/sdk@2.0.13)
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
@@ -1022,29 +1022,29 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@semantos/cell-ops@0.1.0':
-    resolution: {integrity: sha512-yzafCGfpczajBypEyb78RLIe/vq+FtCBeQLQnzdcfZH0hg97HsWy1AU6bK3jqw1JdiFGAo4NF1WJ6fTQ1PCh5w==, tarball: https://npm.pkg.github.com/download/@semantos/cell-ops/0.1.0/3d42141b473e1d547e777d400574f964dd02b632}
+  '@semantos/cell-ops@0.5.0':
+    resolution: {integrity: sha512-6yItW6hNpu5Oy+WZt87Mn675EqC9BfpP1HF8ZA7sh7g9mY2gvF6pV2I8R4L+dMqeOpqz/wJDWiEhKJiXP+e8Ag==, tarball: https://npm.pkg.github.com/download/@semantos/cell-ops/0.5.0/f9c9f6dea44b8ebc5bf9b5e5267bc0a8f531c53c}
 
-  '@semantos/core@0.1.0':
-    resolution: {integrity: sha512-/kU9T7nfFVevdledPW3Q0BmTPzXrvuoPNrKW16/9oqeM/1MEbMAhATIpGWdi8/IYSNN+XEEU0vm7PxHxxjrMIw==, tarball: https://npm.pkg.github.com/download/@semantos/core/0.1.0/c1e8ba7ebd05d3cb43d8a06ff52984a134cbbe38}
+  '@semantos/core@0.5.0':
+    resolution: {integrity: sha512-x/cr+NkcQgKnYhrU/BcKV1m6r5zmoDuHO1Ws5DPebCPXZEhjBY0tIv49k7UY8csUFu78oj7Ep8NWQWBV93U2qg==, tarball: https://npm.pkg.github.com/download/@semantos/core/0.5.0/69bc55a67cf97b0e2c8e345b528fea6b312e2dc1}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@bsv/sdk': ^2.0.0
 
-  '@semantos/intent@0.1.0':
-    resolution: {integrity: sha512-Z5/3Zpape7eO8p4khJOCPyomjm1zX88kUu8HsVSywr6WktwNPQEEnRhhhLX+BcSpUwChkpSekwEUtTnhLjNA7g==, tarball: https://npm.pkg.github.com/download/@semantos/intent/0.1.0/c83463300138abcf62f30db06d6247d0de715f31}
+  '@semantos/intent@0.5.0':
+    resolution: {integrity: sha512-x6MOFieKcZVBhB0167WXNucfWxxPcB/pHXSN9ZGSz/mVIH31cY8ULSmV1CCZKLJlljW7WerhD/4o8Op7zssqMQ==, tarball: https://npm.pkg.github.com/download/@semantos/intent/0.5.0/34f25bd2bf86438b4e4e35f6e05ed7fd5de13809}
 
-  '@semantos/protocol-types@0.1.0':
-    resolution: {integrity: sha512-HjLd3UcMsN7z9C5leXn1fGiXlt85yqgiS5Y2HCcCwbRflmz0YIY3WAzdRZuilSqA2KbXjIOFVa24JvFGxWlKQw==, tarball: https://npm.pkg.github.com/download/@semantos/protocol-types/0.1.0/44ee70263d627d22e0065de4296043b5cc03558a}
+  '@semantos/protocol-types@0.5.0':
+    resolution: {integrity: sha512-SJixTa68YHL/VcrKem6p5bpwNTut0lxYZLMkSZPVy5/Tec59LPh5s9jBx/LAUVPOZi/uz9b3E5q3LOVZG320bQ==, tarball: https://npm.pkg.github.com/download/@semantos/protocol-types/0.5.0/73ff2140df1babef9fd777f6d2f29f8d41a86548}
 
-  '@semantos/semantos-ir@0.1.0':
-    resolution: {integrity: sha512-on7ydhEE7vdK1fv4Xa6gIWtrBsVmIdicM83dYy2/QmAx0HfM/B8T6uGS+V0sMJoESeSlj2/YZqOk3zwPgvWNiA==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-ir/0.1.0/93ef209d42890470ab508922fa9530bf4273986c}
+  '@semantos/semantos-ir@0.5.0':
+    resolution: {integrity: sha512-GgIrotpAcU6wNsWliKCf2irWRdNw0sVIdH6L5uhxlVMAYNQhlcK8s7SiWGArIqvVVKcAu9nkJLCg3AqvhGee+A==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-ir/0.5.0/a1e488ffbeefeb2bb0e5020afeb6db856a89476b}
 
-  '@semantos/semantos-sir@0.1.0':
-    resolution: {integrity: sha512-xG45QHuz78V1z/Z5NejLy3TBDqCVYxnOi546Bad9MuNwzvYeA3W1rZyL2qkeIFsWmgAutiV1uQovXDcsq1x+GA==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-sir/0.1.0/b015dd52a784c2632c8427e9daed04b4cb3dd287}
+  '@semantos/semantos-sir@0.5.0':
+    resolution: {integrity: sha512-mxzW1Z1IgNoMBAthuxDjPiDU4gAn/QnrdKxPpgQOf+rOqr793YrXSLuzqEKb8/F9aGGMyOwbwVcfpwdoQIl4hQ==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-sir/0.5.0/05a37445b6d04bc022c7ee4733c1dee0cf4e4379}
 
-  '@semantos/session-protocol@0.1.0':
-    resolution: {integrity: sha512-hGjI5noZPoaDc02qctkInLqBq36+s3OyDuua+KW0JeSDqhig0i5Zz+hA6SuYmJ9RzyWeLJsh50BY1DJfRjwdIQ==, tarball: https://npm.pkg.github.com/download/@semantos/session-protocol/0.1.0/fdfe611714d7ba128d91f5eade4976a126edfa2b}
+  '@semantos/session-protocol@0.5.0':
+    resolution: {integrity: sha512-0pfXivuz0tUsPIkZVFbdSBsenO/noTbikq7rnnGeVKuKgCDHi1a8MhRDkfEgMZKBko/H/FwlJ7KXo4S5i9cr5w==, tarball: https://npm.pkg.github.com/download/@semantos/session-protocol/0.5.0/c62fd8fd6389cd103dcc1ec29bebe85f7800ee20}
     peerDependencies:
       '@bsv/sdk': ^2.0.0
 
@@ -3713,37 +3713,37 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@semantos/cell-ops@0.1.0': {}
+  '@semantos/cell-ops@0.5.0': {}
 
-  '@semantos/core@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/core@0.5.0(@bsv/sdk@2.0.13)':
     dependencies:
       '@bsv/sdk': 2.0.13
 
-  '@semantos/intent@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/intent@0.5.0(@bsv/sdk@2.0.13)':
     dependencies:
-      '@semantos/protocol-types': 0.1.0(@bsv/sdk@2.0.13)
-      '@semantos/semantos-sir': 0.1.0
+      '@semantos/protocol-types': 0.5.0(@bsv/sdk@2.0.13)
+      '@semantos/semantos-sir': 0.5.0
     transitivePeerDependencies:
       - '@bsv/sdk'
 
-  '@semantos/protocol-types@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/protocol-types@0.5.0(@bsv/sdk@2.0.13)':
     dependencies:
-      '@semantos/cell-ops': 0.1.0
-      '@semantos/core': 0.1.0(@bsv/sdk@2.0.13)
+      '@semantos/cell-ops': 0.5.0
+      '@semantos/core': 0.5.0(@bsv/sdk@2.0.13)
       cbor-x: 1.6.4
     transitivePeerDependencies:
       - '@bsv/sdk'
 
-  '@semantos/semantos-ir@0.1.0': {}
+  '@semantos/semantos-ir@0.5.0': {}
 
-  '@semantos/semantos-sir@0.1.0':
+  '@semantos/semantos-sir@0.5.0':
     dependencies:
-      '@semantos/semantos-ir': 0.1.0
+      '@semantos/semantos-ir': 0.5.0
 
-  '@semantos/session-protocol@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/session-protocol@0.5.0(@bsv/sdk@2.0.13)':
     dependencies:
       '@bsv/sdk': 2.0.13
-      '@semantos/protocol-types': 0.1.0(@bsv/sdk@2.0.13)
+      '@semantos/protocol-types': 0.5.0(@bsv/sdk@2.0.13)
 
   '@swc/helpers@0.5.15':
     dependencies:
