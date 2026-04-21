@@ -127,7 +127,30 @@ IMPORTANT RULES:
 - Every message saves automatically — there is no submit button
 - If the customer drops off, that's ok — the partial record is saved
 - Don't rush to a conclusion — a good conversation produces better job records
-- If someone asks for exact pricing, say: "Hard to be exact without seeing it, but I can give you a rough idea of what these jobs usually run"${context?.pdfImportContext ? buildPdfImportSection(context.pdfImportContext) : ""}${context?.channelContext ? buildChannelContextSection(context.channelContext) : ""}`;
+- If someone asks for exact pricing, say: "Hard to be exact without seeing it, but I can give you a rough idea of what these jobs usually run"
+
+VERB-AWARE ELICITATION (OJT-P6):
+Listen for the lexicon "verb" behind what the tenant says — it shapes the RIGHT follow-up question. Don't announce these labels to the tenant; use them to steer what you ask next.
+
+Jural verbs to listen for:
+- DECLARATION ("I'm letting you know…", "just confirming…") — a status/intent is being announced. Acknowledge it and ask for the effective date or the paperwork that backs it up.
+- OBLIGATION ("I have to…", "the lease says I must…") — a duty is owed. Ask WHO is obligated, and what the breach looks like if it's not met.
+- PERMISSION ("I got the ok to…", "they said go ahead") — authorisation was granted. Ask who granted it and whether it's in writing.
+- PROHIBITION ("I'm not allowed to…", "the rules say no…") — a ban exists. Ask where the ban is recorded (lease clause, agent email).
+- POWER ("I can terminate…", "the agent may…") — a legal capacity is being asserted. Ask what triggers it and who bears the consequences.
+- CONDITION ("if X then Y…", "as long as…") — a gated effect. Ask what the trigger is and who monitors it.
+- TRANSFER ("I've handed over…", "bond moved to…") — something changed hands. Ask who the parties are and whether the transfer is acknowledged by both sides.
+
+Property-management verbs to listen for:
+- LEASE — structure/terms of the agreement. Ask for the term length and the parties.
+- MAINTENANCE — fix/repair/replace. Ask what broke, when, whether it's urgent safety, and whether photos exist.
+- INSPECTION — a scheduled or completed inspection. Ask for the date and whether it's routine, entry, or exit.
+- RENT — amount, timing, arrears, increases. Ask what changed and the effective date.
+- VIOLATION — alleged breach. Ask WHO is alleging, WHAT the breach is, and where the rule lives.
+- RENEWAL — extending the tenancy. Ask the offered term and the deadline to respond.
+- TERMINATION — ending the tenancy. Ask who initiated, the notice type, and the move-out date.
+
+Guidance, not a script: pick the ONE follow-up that the tenant's verb implies is most load-bearing. If no verb is clear, fall back to the existing scope/location/urgency ladder above — don't fish for a lexicon tag that isn't there.${context?.pdfImportContext ? buildPdfImportSection(context.pdfImportContext) : ""}${context?.channelContext ? buildChannelContextSection(context.channelContext) : ""}`;
 }
 
 function buildChannelContextSection(ctx: NonNullable<Parameters<typeof buildSystemPrompt>[0]>["channelContext"] & {}): string {

@@ -54,6 +54,11 @@ import {
 import { objectPatches } from "../semantos-kernel/schema.core";
 import { formatHistoryBlock, listRecentPatches } from "./patchChain";
 import { runHandleMessage } from "./ojtHandleMessage";
+import type { LexiconName, TaggedFact } from "../lexicons";
+import {
+  validateAgainstLexicon,
+  buildRePromptForInvalid,
+} from "../lexicons/validator";
 
 // ── Types ────────────────────────────────────
 
@@ -732,14 +737,28 @@ export async function handleTenantMessage(
     historyBlock,
   });
 
+  // ── 4b. OJT-P6: validate lexicon-tagged facts, one re-prompt on failure ─
+  // The extractor LLM emits taggedFacts alongside the usual fields.
+  // validateAgainstLexicon enforces the semantos registry. If any fact
+  // is invalid we fire ONE corrective re-prompt to the extractor; any
+  // still-invalid facts after that are dropped to null-tagged. Never a
+  // second retry — bounded by the anti-bullshit rule.
+  const initialFacts = extractTaggedFactsFromExtraction(result.extraction);
+  const validation = await runValidationWithOneRetry(
+    initialFacts,
+    input.message,
+  );
+  const dominantLexicon = pickDominantLexicon(validation.ok);
+
   // ── 5. Persist a turn patch carrying federation columns ───────
-  //    Each OJT tool-call outcome would ideally be its own row; P5
-  //    emits one summary patch per turn (extraction + scores + reply)
-  //    with timestamp + facetId. P6 will split into per-tool patches
-  //    once the tool-use loop is hoisted above processCustomerMessage.
+  //    P6: the patch now carries both the validator's summary (so
+  //    downstream can see how many tags were demoted / dropped) and
+  //    the dominant lexicon — threaded into persistTurnPatch as a
+  //    first-class column, not shoved into delta.
   await persistTurnPatch({
     objectId: semObjectId,
     identity: input.identity,
+    lexicon: dominantLexicon,
     delta: {
       triage: triage.triageHint,
       correlationId: triage.correlationId,
@@ -753,12 +772,240 @@ export async function handleTenantMessage(
         quoteWorthinessScore: result.quoteWorthinessScore,
         completenessScore: result.completenessScore,
       },
+      taggedFacts: validation.ok,
+      taggedFactsSummary: {
+        total: initialFacts.length,
+        okCount: validation.ok.length,
+        invalidCount: validation.finalInvalidCount,
+        rePromptUsed: validation.rePromptUsed,
+      },
       reply: result.reply.slice(0, 400),
     },
     source: `handleMessage:${triage.correlationId}`,
   });
 
   return { reply: result.reply, jobId: result.jobId };
+}
+
+// ─────────────────────────────────────────────
+// OJT-P6: tagged-fact extraction + validation + one-shot re-prompt
+// ─────────────────────────────────────────────
+
+/**
+ * Pull TaggedFact[] off the MessageExtraction. The extraction schema's
+ * `taggedFacts` is permissively typed (any strings + numbers) so we
+ * coerce here into the stricter TaggedFact shape. Any malformed entry
+ * is dropped silently — the validator would invalidate them anyway and
+ * we'd rather keep the fast-path clean.
+ */
+function extractTaggedFactsFromExtraction(
+  extraction: MessageExtraction,
+): TaggedFact[] {
+  const raw = (extraction as unknown as { taggedFacts?: Array<Record<string, unknown>> })
+    .taggedFacts;
+  if (!Array.isArray(raw)) return [];
+  const out: TaggedFact[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") continue;
+    const lexicon = r.lexicon as unknown;
+    const category = r.category as unknown;
+    const confidence = typeof r.confidence === "number" ? r.confidence : 0;
+    const fact = typeof r.fact === "string" ? r.fact : "";
+    const source = typeof r.source === "string" ? r.source : "";
+    out.push({
+      lexicon:
+        lexicon === "jural" || lexicon === "property-management"
+          ? (lexicon as LexiconName)
+          : lexicon == null
+            ? null
+            : (lexicon as LexiconName), // pass through unknown strings so validator can reject with a clear reason
+      category: typeof category === "string" ? category : null,
+      confidence,
+      fact,
+      source,
+    });
+  }
+  return out;
+}
+
+interface ValidationOutcome {
+  ok: TaggedFact[];
+  finalInvalidCount: number;
+  rePromptUsed: boolean;
+}
+
+/**
+ * Run validateAgainstLexicon, and on any invalid facts, fire exactly
+ * ONE corrective re-prompt to the extractor. Any facts still invalid
+ * after the retry are demoted to null-tagged and pass through. Never
+ * more than one retry — per anti-bullshit rule 3.
+ */
+async function runValidationWithOneRetry(
+  initialFacts: TaggedFact[],
+  originalMessage: string,
+): Promise<ValidationOutcome> {
+  const first = validateAgainstLexicon(initialFacts);
+  if (first.invalid.length === 0) {
+    return { ok: first.ok, finalInvalidCount: 0, rePromptUsed: false };
+  }
+
+  const rePrompt = buildRePromptForInvalid(first.invalid);
+  let retriedFacts: TaggedFact[] = [];
+  try {
+    retriedFacts = await callExtractorForRePrompt(rePrompt, originalMessage);
+  } catch (err) {
+    console.warn("chat.p6.lexicon.reprompt_failed", err);
+    // On re-prompt failure, fall back to demoting every invalid fact
+    // to null-tagged and carrying on — better than a silent drop.
+    retriedFacts = first.invalid.map(({ fact }) => ({
+      ...fact,
+      lexicon: null,
+      category: null,
+    }));
+  }
+
+  const second = validateAgainstLexicon(retriedFacts);
+  // Any fact still invalid after the retry is demoted to null-tagged.
+  const demotedFromRetry: TaggedFact[] = second.invalid.map(({ fact }) => ({
+    ...fact,
+    lexicon: null,
+    category: null,
+  }));
+
+  return {
+    ok: [...first.ok, ...second.ok, ...demotedFromRetry],
+    finalInvalidCount: second.invalid.length,
+    rePromptUsed: true,
+  };
+}
+
+/**
+ * Fire ONE corrective extractor call asking for a clean taggedFacts
+ * array. The reply is expected to be JSON — either the array directly
+ * or an object with a `taggedFacts` property. Anything else is treated
+ * as an empty array (caller's retry budget is already spent).
+ *
+ * Test seam: `__setExtractorForLexiconTests(fn)` below swaps this out
+ * so the G4 test can assert exactly one re-prompt call without hitting
+ * the real API.
+ */
+async function callExtractorForRePrompt(
+  rePrompt: string,
+  originalMessage: string,
+): Promise<TaggedFact[]> {
+  if (_extractorOverride) {
+    return _extractorOverride(rePrompt, originalMessage);
+  }
+
+  const anthropic = new Anthropic();
+  const prompt = `${rePrompt}
+
+Original customer message:
+"${originalMessage}"
+
+Re-emit ONLY a JSON array of TaggedFact objects — no prose, no markdown fences. Shape:
+[
+  { "lexicon": "jural" | "property-management" | null, "category": string | null, "confidence": number, "fact": string, "source": string }
+]`;
+  const response = await anthropic.messages.create({
+    model: EXTRACTION_MODEL,
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const text =
+    response.content[0]?.type === "text" ? response.content[0].text : "";
+  return parseTaggedFactsFromResponse(text);
+}
+
+/**
+ * Test-only extractor override. G4 asserts exactly one re-prompt call
+ * fires when the first extraction returns invalid tags — this seam lets
+ * the test count invocations without stubbing Anthropic globally.
+ */
+let _extractorOverride:
+  | ((rePrompt: string, originalMessage: string) => Promise<TaggedFact[]>)
+  | null = null;
+
+export function __setExtractorForLexiconTests(
+  fn:
+    | ((rePrompt: string, originalMessage: string) => Promise<TaggedFact[]>)
+    | null,
+): void {
+  _extractorOverride = fn;
+}
+
+/**
+ * Parse a tagged-facts JSON blob out of an extractor reply. Accepts:
+ *   - a bare JSON array
+ *   - a JSON object with a `taggedFacts: [...]` property
+ *   - either wrapped in ```json fences
+ * Anything else returns an empty array.
+ */
+export function parseTaggedFactsFromResponse(
+  raw: string,
+): TaggedFact[] {
+  if (!raw) return [];
+  let clean = raw.trim();
+  if (clean.startsWith("```")) {
+    clean = clean.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(clean);
+  } catch {
+    return [];
+  }
+  const arr = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as { taggedFacts?: unknown }).taggedFacts)
+      ? (parsed as { taggedFacts: unknown[] }).taggedFacts
+      : null;
+  if (!arr) return [];
+
+  const out: TaggedFact[] = [];
+  for (const r of arr) {
+    if (!r || typeof r !== "object") continue;
+    const rec = r as Record<string, unknown>;
+    out.push({
+      lexicon:
+        rec.lexicon === "jural" || rec.lexicon === "property-management"
+          ? (rec.lexicon as LexiconName)
+          : rec.lexicon == null
+            ? null
+            : (rec.lexicon as LexiconName),
+      category: typeof rec.category === "string" ? rec.category : null,
+      confidence: typeof rec.confidence === "number" ? rec.confidence : 0,
+      fact: typeof rec.fact === "string" ? rec.fact : "",
+      source: typeof rec.source === "string" ? rec.source : "",
+    });
+  }
+  return out;
+}
+
+/**
+ * Pick the lexicon name carried by the most tagged facts. Used to
+ * stamp the `lexicon` column on the turn's sem_object_patches row.
+ * Returns null if no fact is tagged (i.e. everything was null-tagged).
+ */
+function pickDominantLexicon(
+  facts: TaggedFact[],
+): LexiconName | null {
+  const counts = new Map<LexiconName, number>();
+  for (const f of facts) {
+    if (f.lexicon === null) continue;
+    counts.set(f.lexicon, (counts.get(f.lexicon) ?? 0) + 1);
+  }
+  if (counts.size === 0) return null;
+  let best: LexiconName | null = null;
+  let bestCount = -1;
+  for (const [lex, n] of counts) {
+    if (n > bestCount) {
+      best = lex;
+      bestCount = n;
+    }
+  }
+  return best;
 }
 
 // ─────────────────────────────────────────────
@@ -777,14 +1024,21 @@ interface PersistTurnPatchInput {
   identity: { facetId: string; certId: string };
   delta: Record<string, unknown>;
   source: string;
+  /**
+   * OJT-P6: the lexicon the turn's tagged facts predominantly map to,
+   * or null when every fact was null-tagged (no lexicon fit). Written
+   * to the sem_object_patches.lexicon column so federation consumers
+   * can filter by vocabulary.
+   */
+  lexicon?: LexiconName | null;
 }
 
 /**
  * Write a single `sem_object_patches` row tagged with the OJT-P1
  * federation columns (`timestamp`, `facetId`). Uses `patchKind:
  * action` — the enum's catch-all for "the LLM ran a turn and
- * something changed". `lexicon` is deliberately null in P5; P6
- * stamps it with 'jural' / 'property-management'.
+ * something changed". P6 now also stamps `lexicon` with the dominant
+ * lexicon from the turn's validated taggedFacts (or null).
  *
  * Reads the current semantic-object row to populate the version
  * chain fields (fromVersion, toVersion, prevStateHash, newStateHash)
@@ -816,7 +1070,9 @@ async function persistTurnPatch(input: PersistTurnPatchInput): Promise<void> {
       // ── OJT-P1 federation columns ──
       timestamp: Date.now(),
       facetId: input.identity.facetId,
-      // lexicon + facetCapabilities stay null — P6 wires them.
+      // ── OJT-P6: lexicon attribution ──
+      lexicon: input.lexicon ?? null,
+      // facetCapabilities still null — wired in a later phase.
     });
   } catch (err) {
     // Never let patch persistence break the HTTP turn. Log and carry.

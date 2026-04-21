@@ -1,0 +1,165 @@
+[
+  {
+    "id": "syn-01-jural-declaration",
+    "source": "synthetic",
+    "utterance": "I'm letting you know I'll be vacating the unit on the 30th of next month.",
+    "expected": [
+      { "lexicon": "jural", "category": "declaration" }
+    ]
+  },
+  {
+    "id": "syn-02-jural-obligation",
+    "source": "synthetic",
+    "utterance": "The lease says I have to give 28 days written notice before leaving.",
+    "expected": [
+      { "lexicon": "jural", "category": "obligation" }
+    ]
+  },
+  {
+    "id": "syn-03-jural-permission",
+    "source": "synthetic",
+    "utterance": "I asked the landlord about having a cat and they said go ahead, no problem.",
+    "expected": [
+      { "lexicon": "jural", "category": "permission" }
+    ]
+  },
+  {
+    "id": "syn-04-jural-prohibition",
+    "source": "synthetic",
+    "utterance": "The agreement is very clear — no pets under any circumstances.",
+    "expected": [
+      { "lexicon": "jural", "category": "prohibition" }
+    ]
+  },
+  {
+    "id": "syn-05-jural-power",
+    "source": "synthetic",
+    "utterance": "As the head tenant I can add a flatmate to the lease at any time.",
+    "expected": [
+      { "lexicon": "jural", "category": "power" }
+    ]
+  },
+  {
+    "id": "syn-06-jural-condition",
+    "source": "synthetic",
+    "utterance": "If the rent clears by Friday then we'll waive the late fee this month.",
+    "expected": [
+      { "lexicon": "jural", "category": "condition" }
+    ]
+  },
+  {
+    "id": "syn-07-jural-transfer",
+    "source": "synthetic",
+    "utterance": "I've already transferred the bond over to the RTA for the new place.",
+    "expected": [
+      { "lexicon": "jural", "category": "transfer" }
+    ]
+  },
+  {
+    "id": "syn-08-pm-lease",
+    "source": "synthetic",
+    "utterance": "We signed a 12-month fixed-term lease starting in March.",
+    "expected": [
+      { "lexicon": "property-management", "category": "lease" }
+    ]
+  },
+  {
+    "id": "syn-09-pm-maintenance",
+    "source": "synthetic",
+    "utterance": "The kitchen tap has been leaking for three weeks and it's getting worse.",
+    "expected": [
+      { "lexicon": "property-management", "category": "maintenance" }
+    ]
+  },
+  {
+    "id": "syn-10-pm-inspection",
+    "source": "synthetic",
+    "utterance": "The agent is doing the routine inspection next Tuesday morning.",
+    "expected": [
+      { "lexicon": "property-management", "category": "inspection" }
+    ]
+  },
+  {
+    "id": "syn-11-pm-rent",
+    "source": "synthetic",
+    "utterance": "They're raising the rent by $40 a week from next month.",
+    "expected": [
+      { "lexicon": "property-management", "category": "rent" }
+    ]
+  },
+  {
+    "id": "syn-12-pm-violation",
+    "source": "synthetic",
+    "utterance": "The neighbour complained that I had four people staying here when the lease says two.",
+    "expected": [
+      { "lexicon": "property-management", "category": "violation" }
+    ]
+  },
+  {
+    "id": "syn-13-pm-renewal",
+    "source": "synthetic",
+    "utterance": "The agent offered to renew the lease for another 12 months at the same rate.",
+    "expected": [
+      { "lexicon": "property-management", "category": "renewal" }
+    ]
+  },
+  {
+    "id": "syn-14-pm-termination",
+    "source": "synthetic",
+    "utterance": "I got a notice to vacate today because they're selling the property.",
+    "expected": [
+      { "lexicon": "property-management", "category": "termination" }
+    ]
+  },
+  {
+    "id": "syn-15-mixed-maintenance-obligation",
+    "source": "synthetic",
+    "utterance": "The hot water system is dead and the lease says the landlord has to repair it within 48 hours.",
+    "expected": [
+      { "lexicon": "property-management", "category": "maintenance" },
+      { "lexicon": "jural", "category": "obligation" }
+    ]
+  },
+  {
+    "id": "syn-16-mixed-renewal-condition",
+    "source": "synthetic",
+    "utterance": "They'll renew the lease if I agree to a $30 rent increase.",
+    "expected": [
+      { "lexicon": "property-management", "category": "renewal" },
+      { "lexicon": "jural", "category": "condition" }
+    ]
+  },
+  {
+    "id": "syn-17-pm-termination-declaration",
+    "source": "synthetic",
+    "utterance": "I'm letting you know I'm breaking the lease — I'll be out by the end of the month.",
+    "expected": [
+      { "lexicon": "jural", "category": "declaration" },
+      { "lexicon": "property-management", "category": "termination" }
+    ]
+  },
+  {
+    "id": "syn-18-pm-inspection-prohibition",
+    "source": "synthetic",
+    "utterance": "They can't do the inspection this weekend — I haven't been given 7 days notice as required.",
+    "expected": [
+      { "lexicon": "property-management", "category": "inspection" },
+      { "lexicon": "jural", "category": "prohibition" }
+    ]
+  },
+  {
+    "id": "syn-19-no-fit",
+    "source": "synthetic",
+    "utterance": "Yeah cheers mate, thanks for sorting that out.",
+    "expected": []
+  },
+  {
+    "id": "syn-20-pm-maintenance-power",
+    "source": "synthetic",
+    "utterance": "The shower's been leaking for a month. If it's not fixed in 14 days I can apply to QCAT to force the repair.",
+    "expected": [
+      { "lexicon": "property-management", "category": "maintenance" },
+      { "lexicon": "jural", "category": "power" }
+    ]
+  }
+]

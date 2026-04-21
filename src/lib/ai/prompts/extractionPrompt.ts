@@ -7,6 +7,10 @@
 
 import type { AccumulatedJobState } from "../extractors/extractionSchema";
 import { buildCategoryAwareExtractionHints } from "../../domain/categories/categoryResolver";
+import {
+  JURAL_CATEGORIES,
+  PM_CATEGORIES,
+} from "../../lexicons";
 
 export function buildExtractionPrompt(
   currentState: AccumulatedJobState,
@@ -138,5 +142,144 @@ EXTRACTION RULES:
    - If unsure, use "same_job" — only use "different_job" when it's clearly a separate job
 
 ${buildCategoryAwareExtractionHints(currentState)}
+${buildTaggedFactsSection()}
 Output ONLY the raw JSON object. No \`\`\`json fences. No markdown. No explanation.`;
 }
+
+/**
+ * TAGGED FACTS section (OJT-P6). Appended to the extraction prompt so
+ * the LLM also emits `taggedFacts: TaggedFact[]` alongside the existing
+ * extraction fields. Categories are rendered from the imported
+ * JURAL_CATEGORIES / PM_CATEGORIES so the prompt stays in sync with
+ * semantos without manual duplication.
+ *
+ * The shape matches `src/lib/lexicons/index.ts::TaggedFact`. The post-
+ * extraction validator (`validateAgainstLexicon`) enforces the registry
+ * — this prompt is only guidance. NEVER trust the LLM's tags without
+ * running the validator.
+ */
+function buildTaggedFactsSection(): string {
+  // Rendering from the registry arrays ensures the prompt can't drift
+  // from the source of truth. If semantos adds a category, it shows up
+  // here without any OJT-side edit.
+  const juralList = JURAL_CATEGORIES.map((c) => `  - ${c}: ${JURAL_DEFINITIONS[c] ?? "(see semantos-core Jural.lean)"}`).join("\n");
+  const pmList = PM_CATEGORIES.map((c) => `  - ${c}: ${PM_DEFINITIONS[c] ?? "(see semantos-core PropertyManagement.lean)"}`).join("\n");
+
+  return `
+TAGGED FACTS (OJT-P6):
+
+Alongside the extraction fields above, emit a \`taggedFacts\` array. Each element tags a single fact against ONE (lexicon, category) pair or leaves both null.
+
+Shape:
+  "taggedFacts": [
+    {
+      "lexicon": "jural" | "property-management" | null,
+      "category": <one of the categories for that lexicon> | null,
+      "confidence": <number 0..1>,
+      "fact": <one-sentence canonicalised statement>,
+      "source": <verbatim slice of the customer's utterance>
+    }
+  ]
+
+Jural lexicon (legal / Hohfeldian relations):
+${juralList}
+
+Property-management lexicon (rental-operations lifecycle):
+${pmList}
+
+Rules:
+- If a fact does not clearly fit either lexicon, set lexicon=null AND category=null. NEVER guess.
+- Confidence below 0.6 will be discarded by the validator. Only report high-confidence tags.
+- NEVER set one field null and the other non-null — that's a partial tag and will be rejected.
+- A single utterance may produce multiple tagged facts (e.g. a complaint is maintenance + obligation).
+
+FEW-SHOT EXAMPLES:
+
+# Jural — declaration
+"I'm letting you know I'll be moving out on the 30th."
+  → { "lexicon": "jural", "category": "declaration", "confidence": 0.9, "fact": "Tenant declares intent to vacate on the 30th", "source": "I'm letting you know I'll be moving out on the 30th" }
+
+# Jural — obligation
+"the lease says I have to give 28 days notice before leaving"
+  → { "lexicon": "jural", "category": "obligation", "confidence": 0.9, "fact": "Tenant obligated to give 28 days notice before vacating", "source": "the lease says I have to give 28 days notice before leaving" }
+
+# Jural — permission
+"yeah I asked the landlord and they said go ahead"
+  → { "lexicon": "jural", "category": "permission", "confidence": 0.85, "fact": "Landlord granted permission for the tenant to proceed", "source": "I asked the landlord and they said go ahead" }
+
+# Jural — prohibition
+"the agreement says no pets under any circumstances"
+  → { "lexicon": "jural", "category": "prohibition", "confidence": 0.95, "fact": "Tenancy prohibits pets on the premises", "source": "the agreement says no pets under any circumstances" }
+
+# Jural — power
+"as the head tenant I can add a flatmate to the lease"
+  → { "lexicon": "jural", "category": "power", "confidence": 0.8, "fact": "Head tenant has power to add a flatmate to the lease", "source": "as the head tenant I can add a flatmate to the lease" }
+
+# Jural — condition
+"if the rent clears by Friday we'll waive the late fee"
+  → { "lexicon": "jural", "category": "condition", "confidence": 0.85, "fact": "Late fee waived conditional on rent clearing by Friday", "source": "if the rent clears by Friday we'll waive the late fee" }
+
+# Jural — transfer
+"I've transferred the bond over to the new place"
+  → { "lexicon": "jural", "category": "transfer", "confidence": 0.85, "fact": "Bond transferred to a different tenancy", "source": "I've transferred the bond over to the new place" }
+
+# Property-management — lease
+"we signed a 12-month lease starting in March"
+  → { "lexicon": "property-management", "category": "lease", "confidence": 0.95, "fact": "12-month lease commenced in March", "source": "we signed a 12-month lease starting in March" }
+
+# Property-management — maintenance
+"the kitchen tap has been leaking for three weeks"
+  → { "lexicon": "property-management", "category": "maintenance", "confidence": 0.9, "fact": "Kitchen tap leaking for 3 weeks", "source": "the kitchen tap has been leaking for three weeks" }
+
+# Property-management — inspection
+"the agent is doing the routine inspection next Tuesday"
+  → { "lexicon": "property-management", "category": "inspection", "confidence": 0.9, "fact": "Routine inspection scheduled for next Tuesday", "source": "the agent is doing the routine inspection next Tuesday" }
+
+# Property-management — rent
+"rent's going up by $40 a week from next month"
+  → { "lexicon": "property-management", "category": "rent", "confidence": 0.9, "fact": "Rent increase of $40/week effective next month", "source": "rent's going up by $40 a week from next month" }
+
+# Property-management — violation
+"the neighbour complained I had four people living here when the lease says two"
+  → { "lexicon": "property-management", "category": "violation", "confidence": 0.85, "fact": "Alleged occupancy breach — four residents vs lease limit of two", "source": "neighbour complained I had four people living here when the lease says two" }
+
+# Property-management — renewal
+"the agent offered to renew the lease for another 12 months"
+  → { "lexicon": "property-management", "category": "renewal", "confidence": 0.9, "fact": "Agent offered 12-month lease renewal", "source": "the agent offered to renew the lease for another 12 months" }
+
+# Property-management — termination
+"I got a notice to vacate because they're selling the place"
+  → { "lexicon": "property-management", "category": "termination", "confidence": 0.95, "fact": "Notice to vacate issued due to property sale", "source": "I got a notice to vacate because they're selling the place" }
+
+# Untagged (no fit — set both null)
+"yeah cheers thanks for sorting that"
+  → { "lexicon": null, "category": null, "confidence": 0.9, "fact": "Tenant acknowledgement of assistance", "source": "cheers thanks for sorting that" }
+`;
+}
+
+/**
+ * One-line human-readable definitions for the Jural categories. Keys
+ * are kept loose (string index) so if semantos ever adds a category we
+ * don't break at compile time — missing entries fall through to a
+ * generic note in buildTaggedFactsSection.
+ */
+const JURAL_DEFINITIONS: Record<string, string> = {
+  declaration: "an explicit announcement or statement of status/intent (\"I hereby...\", \"I'm letting you know...\")",
+  obligation: "a duty owed — someone MUST do something (\"I have to\", \"the lease requires\")",
+  permission: "authorisation granted — someone MAY do something (\"I said it's fine\", \"go ahead\")",
+  prohibition: "a ban — someone MUST NOT do something (\"no pets\", \"not allowed\")",
+  power: "legal capacity to change another's position (\"I can terminate\", \"the agent may evict\")",
+  condition: "an if/then that gates some effect (\"if X then Y\", \"provided that\", \"as long as\")",
+  transfer: "movement of a right, obligation, or thing between parties (\"I've handed it over\", \"bond transferred\")",
+};
+
+/** One-line definitions for the PropertyManagement categories. */
+const PM_DEFINITIONS: Record<string, string> = {
+  lease: "creation, structure, or terms of the tenancy agreement itself",
+  maintenance: "fix/repair/replace requests or reports (leaks, broken fittings, wear)",
+  inspection: "scheduled or completed property inspections (routine, entry, exit)",
+  rent: "rent amount, changes, payment timing, arrears, or late fees",
+  violation: "alleged or actual breach of the lease by any party",
+  renewal: "extending or renewing the tenancy past the current term",
+  termination: "ending the tenancy — notices to vacate, break-lease, sale, eviction",
+};
