@@ -9,12 +9,18 @@
  */
 
 import { parsePhoneNumberFromString } from "libphonenumber-js/core";
-// Import metadata explicitly to work around a libphonenumber-js ESM/CJS
-// interop quirk in tsx where the packaged `metadata.min.json.js` module's
-// default export surfaces as `{ default: {...} }` inside the lib's own
-// internal `call()` helper. Going through `/core` with an explicit
-// metadata arg sidesteps that code path entirely.
-import metadata from "libphonenumber-js/metadata.min.json" with { type: "json" };
+// Load metadata via namespace import + default/namespace fallback. We used
+// to use `import metadata from "libphonenumber-js/metadata.min.json" with
+// { type: "json" }` but Bun 1.2 resolves the exports map to the packaged
+// `metadata.min.json.js` wrapper and then tries to re-parse *that* file as
+// JSON — crashing with a "JSON Parse error: Unrecognized token '/'" before
+// a single line of test code runs. Using a namespace import (no JSON
+// assert) lets both tsx/Node and Bun agree: the resolver picks the `.js`
+// wrapper, ESM gives us either a default export or the namespace itself,
+// and we coalesce. Next's webpack/turbopack handles both forms.
+import * as _metadataNs from "libphonenumber-js/min/metadata";
+const metadata = ((_metadataNs as unknown as { default?: unknown }).default ??
+  _metadataNs) as Parameters<typeof parsePhoneNumberFromString>[2];
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 
