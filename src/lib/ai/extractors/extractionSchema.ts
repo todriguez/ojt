@@ -95,6 +95,23 @@ export const messageExtractionSchema = z.object({
     "confirmed",
     "disengaged",
   ], "greeting"),
+
+  // OJT-P6: lexicon-tagged facts. Schema is deliberately permissive at
+  // parse-time — the post-extraction validator (validateAgainstLexicon)
+  // owns membership checks against the semantos registry. Keeping this
+  // loose means an off-spec tag doesn't blow up the whole extraction;
+  // the validator either accepts, demotes, or triggers one re-prompt.
+  taggedFacts: z
+    .array(
+      z.object({
+        lexicon: z.string().nullable().default(null),
+        category: z.string().nullable().default(null),
+        confidence: z.number().default(0),
+        fact: z.string().default(""),
+        source: z.string().default(""),
+      }),
+    )
+    .default([]),
 });
 
 export type MessageExtraction = z.infer<typeof messageExtractionSchema>;
