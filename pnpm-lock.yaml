@@ -101,6 +101,9 @@ importers:
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
       react:
         specifier: 19.2.1
         version: 19.2.1
@@ -1032,6 +1035,9 @@ packages:
     resolution: {integrity: sha512-339M2HqNz+RtoNR6+9xcwFrcfYwbHssBW1Za59mUZZ0ULScmxLKhAHOJJiGsCVpCH7FFz7myvP9caJTUwnik2w==, tarball: https://npm.pkg.github.com/download/@semantos/calendar-ext/0.6.0/f0b99cc0959a1cf63ed1eddc48e1b43efd5dc848}
     peerDependencies:
       react: ^18 || ^19
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@semantos/cell-ops@0.6.0':
     resolution: {integrity: sha512-ByYqPnGS6HOcSEE6GXIqvzKZHGXlZRdFJU/b2HyQiRLTBDMGyr6zdu3CBZL+EfJ+RIPUsMnGUFEubgO4RSt4Zw==, tarball: https://npm.pkg.github.com/download/@semantos/cell-ops/0.6.0/c311ffd254e1f22ed83c858b2c5e28505cd9a71d}
@@ -3827,6 +3833,7 @@ snapshots:
       '@semantos/semantos-sir': 0.6.0
       drizzle-orm: 0.33.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(postgres@3.4.9)(react@19.2.1)
       postgres: 3.4.9
+    optionalDependencies:
       react: 19.2.1
     transitivePeerDependencies:
       - '@aws-sdk/client-rds-data'
