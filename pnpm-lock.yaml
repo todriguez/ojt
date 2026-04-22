@@ -23,27 +23,33 @@ importers:
       '@noble/secp256k1':
         specifier: ^3.1.0
         version: 3.1.0
+      '@semantos/calendar-ext':
+        specifier: ^0.6.0
+        version: 0.6.0(@bsv/sdk@2.0.13)(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(react@19.2.1)
       '@semantos/cell-ops':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.6.0
+        version: 0.6.0
       '@semantos/core':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.6.0
+        version: 0.6.0(@bsv/sdk@2.0.13)
       '@semantos/intent':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.6.0
+        version: 0.6.0(@bsv/sdk@2.0.13)
       '@semantos/protocol-types':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.6.0
+        version: 0.6.0(@bsv/sdk@2.0.13)
+      '@semantos/semantic-objects':
+        specifier: ^0.6.0
+        version: 0.6.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(react@19.2.1)
       '@semantos/semantos-ir':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.6.0
+        version: 0.6.0
       '@semantos/semantos-sir':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.6.0
+        version: 0.6.0
       '@semantos/session-protocol':
-        specifier: ^0.1.0
-        version: 0.1.0(@bsv/sdk@2.0.13)
+        specifier: ^0.6.0
+        version: 0.6.0(@bsv/sdk@2.0.13)
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
@@ -73,7 +79,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.2(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@upstash/redis@1.37.0)(pg@8.20.0)
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@upstash/redis@1.37.0)(pg@8.20.0)(postgres@3.4.9)
       jose:
         specifier: ^6.2.2
         version: 6.2.2
@@ -95,6 +101,9 @@ importers:
       pino-pretty:
         specifier: ^13.1.3
         version: 13.1.3
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
       react:
         specifier: 19.2.1
         version: 19.2.1
@@ -1022,29 +1031,40 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@semantos/cell-ops@0.1.0':
-    resolution: {integrity: sha512-yzafCGfpczajBypEyb78RLIe/vq+FtCBeQLQnzdcfZH0hg97HsWy1AU6bK3jqw1JdiFGAo4NF1WJ6fTQ1PCh5w==, tarball: https://npm.pkg.github.com/download/@semantos/cell-ops/0.1.0/3d42141b473e1d547e777d400574f964dd02b632}
+  '@semantos/calendar-ext@0.6.0':
+    resolution: {integrity: sha512-339M2HqNz+RtoNR6+9xcwFrcfYwbHssBW1Za59mUZZ0ULScmxLKhAHOJJiGsCVpCH7FFz7myvP9caJTUwnik2w==, tarball: https://npm.pkg.github.com/download/@semantos/calendar-ext/0.6.0/f0b99cc0959a1cf63ed1eddc48e1b43efd5dc848}
+    peerDependencies:
+      react: ^18 || ^19
+    peerDependenciesMeta:
+      react:
+        optional: true
 
-  '@semantos/core@0.1.0':
-    resolution: {integrity: sha512-/kU9T7nfFVevdledPW3Q0BmTPzXrvuoPNrKW16/9oqeM/1MEbMAhATIpGWdi8/IYSNN+XEEU0vm7PxHxxjrMIw==, tarball: https://npm.pkg.github.com/download/@semantos/core/0.1.0/c1e8ba7ebd05d3cb43d8a06ff52984a134cbbe38}
+  '@semantos/cell-ops@0.6.0':
+    resolution: {integrity: sha512-ByYqPnGS6HOcSEE6GXIqvzKZHGXlZRdFJU/b2HyQiRLTBDMGyr6zdu3CBZL+EfJ+RIPUsMnGUFEubgO4RSt4Zw==, tarball: https://npm.pkg.github.com/download/@semantos/cell-ops/0.6.0/c311ffd254e1f22ed83c858b2c5e28505cd9a71d}
+
+  '@semantos/core@0.6.0':
+    resolution: {integrity: sha512-eDEoNSTVXc7lR3eTem2MFow2eHcAb9+CXd1hJ0tmJGmiQeBzruX8szAd9ILVnWfBG9mbhbOR4BWtSvfVyqeTUA==, tarball: https://npm.pkg.github.com/download/@semantos/core/0.6.0/79b563267168ee86982f22072d7b3d02d5ef68ab}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@bsv/sdk': ^2.0.0
 
-  '@semantos/intent@0.1.0':
-    resolution: {integrity: sha512-Z5/3Zpape7eO8p4khJOCPyomjm1zX88kUu8HsVSywr6WktwNPQEEnRhhhLX+BcSpUwChkpSekwEUtTnhLjNA7g==, tarball: https://npm.pkg.github.com/download/@semantos/intent/0.1.0/c83463300138abcf62f30db06d6247d0de715f31}
+  '@semantos/intent@0.6.0':
+    resolution: {integrity: sha512-Pjclom/qLF8LiTJFWTpbwioPBqRuttiuXHK7KwDIpavysf6MREXmtZLKqld9zJ4ImPMmmmzGkwsvQcKz4PA9pQ==, tarball: https://npm.pkg.github.com/download/@semantos/intent/0.6.0/5ceb035876c90397c7178c0fd92b1798ad966d68}
 
-  '@semantos/protocol-types@0.1.0':
-    resolution: {integrity: sha512-HjLd3UcMsN7z9C5leXn1fGiXlt85yqgiS5Y2HCcCwbRflmz0YIY3WAzdRZuilSqA2KbXjIOFVa24JvFGxWlKQw==, tarball: https://npm.pkg.github.com/download/@semantos/protocol-types/0.1.0/44ee70263d627d22e0065de4296043b5cc03558a}
+  '@semantos/protocol-types@0.6.0':
+    resolution: {integrity: sha512-lBQzsef2NGdhLijkjdISx8s4zwSX5ibfZQhlkH6CCwyV43Rq4QEqSfR2iEWIwJa8xsdgpOhlAnrNa2g0fkgtHQ==, tarball: https://npm.pkg.github.com/download/@semantos/protocol-types/0.6.0/85213d0691fc1f1d62bd4f921fcd8968a5fd4581}
 
-  '@semantos/semantos-ir@0.1.0':
-    resolution: {integrity: sha512-on7ydhEE7vdK1fv4Xa6gIWtrBsVmIdicM83dYy2/QmAx0HfM/B8T6uGS+V0sMJoESeSlj2/YZqOk3zwPgvWNiA==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-ir/0.1.0/93ef209d42890470ab508922fa9530bf4273986c}
+  '@semantos/semantic-objects@0.6.0':
+    resolution: {integrity: sha512-2KcciVuFPqdN/vg1jpc9aHBogGh46GtzrUQCugI84te5HYoZIEIBa5Aq8XBxzqS6hg8a+wret+jD2ufSBNDT7Q==, tarball: https://npm.pkg.github.com/download/@semantos/semantic-objects/0.6.0/e13a9ee2b82521e9acf920d7698e6be33af81ff6}
 
-  '@semantos/semantos-sir@0.1.0':
-    resolution: {integrity: sha512-xG45QHuz78V1z/Z5NejLy3TBDqCVYxnOi546Bad9MuNwzvYeA3W1rZyL2qkeIFsWmgAutiV1uQovXDcsq1x+GA==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-sir/0.1.0/b015dd52a784c2632c8427e9daed04b4cb3dd287}
+  '@semantos/semantos-ir@0.6.0':
+    resolution: {integrity: sha512-m7//O8h7HQCQ3qvpmZLdw6VrscDTzjSzs223bif65Xrhg0Z79wvhVdbaJJgyq1KCf0nPCBfG1+6fjE8fqQfzjA==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-ir/0.6.0/012e75e78e66aed7eebef4a5420a297f431830ba}
 
-  '@semantos/session-protocol@0.1.0':
-    resolution: {integrity: sha512-hGjI5noZPoaDc02qctkInLqBq36+s3OyDuua+KW0JeSDqhig0i5Zz+hA6SuYmJ9RzyWeLJsh50BY1DJfRjwdIQ==, tarball: https://npm.pkg.github.com/download/@semantos/session-protocol/0.1.0/fdfe611714d7ba128d91f5eade4976a126edfa2b}
+  '@semantos/semantos-sir@0.6.0':
+    resolution: {integrity: sha512-X+WX/7ACST8x+w1kOxV5Zlo+Uw5i6a8FBIO2kaBBbcNfsIQGUnd3Dl7UHiIQrahA0M06GHYyjYKF/AFBmkp3lQ==, tarball: https://npm.pkg.github.com/download/@semantos/semantos-sir/0.6.0/ae1e7bfabc7530349e09e571595ea8a4fe040d1c}
+
+  '@semantos/session-protocol@0.6.0':
+    resolution: {integrity: sha512-1An2YmFXfjj8rl6f6hG5R9gz9fXb9EUA3/mae1JTrKC9HG2yURXuaFZMf1rw1DitDZsas+2G3uD6WsCPUNLLzg==, tarball: https://npm.pkg.github.com/download/@semantos/session-protocol/0.6.0/a7031e3ca634c33fa86f22c0b31e83d878347cf3}
     peerDependencies:
       '@bsv/sdk': ^2.0.0
 
@@ -1609,6 +1629,95 @@ packages:
   drizzle-kit@0.31.10:
     resolution: {integrity: sha512-7OZcmQUrdGI+DUNNsKBn1aW8qSoKuTH7d0mYgSP8bAzdFzKoovxEFnoGQp2dVs82EOJeYycqRtciopszwUf8bw==}
     hasBin: true
+
+  drizzle-orm@0.33.0:
+    resolution: {integrity: sha512-SHy72R2Rdkz0LEq0PSG/IdvnT3nGiWuRk+2tXZQ90GVq/XQhpCzu/EFT3V2rox+w8MlkBQxifF8pCStNYnERfA==}
+    peerDependencies:
+      '@aws-sdk/client-rds-data': '>=3'
+      '@cloudflare/workers-types': '>=3'
+      '@electric-sql/pglite': '>=0.1.1'
+      '@libsql/client': '*'
+      '@neondatabase/serverless': '>=0.1'
+      '@op-engineering/op-sqlite': '>=2'
+      '@opentelemetry/api': ^1.4.1
+      '@planetscale/database': '>=1'
+      '@prisma/client': '*'
+      '@tidbcloud/serverless': '*'
+      '@types/better-sqlite3': '*'
+      '@types/pg': '*'
+      '@types/react': '>=18'
+      '@types/sql.js': '*'
+      '@vercel/postgres': '>=0.8.0'
+      '@xata.io/client': '*'
+      better-sqlite3: '>=7'
+      bun-types: '*'
+      expo-sqlite: '>=13.2.0'
+      knex: '*'
+      kysely: '*'
+      mysql2: '>=2'
+      pg: '>=8'
+      postgres: '>=3'
+      prisma: '*'
+      react: '>=18'
+      sql.js: '>=1'
+      sqlite3: '>=5'
+    peerDependenciesMeta:
+      '@aws-sdk/client-rds-data':
+        optional: true
+      '@cloudflare/workers-types':
+        optional: true
+      '@electric-sql/pglite':
+        optional: true
+      '@libsql/client':
+        optional: true
+      '@neondatabase/serverless':
+        optional: true
+      '@op-engineering/op-sqlite':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@planetscale/database':
+        optional: true
+      '@prisma/client':
+        optional: true
+      '@tidbcloud/serverless':
+        optional: true
+      '@types/better-sqlite3':
+        optional: true
+      '@types/pg':
+        optional: true
+      '@types/react':
+        optional: true
+      '@types/sql.js':
+        optional: true
+      '@vercel/postgres':
+        optional: true
+      '@xata.io/client':
+        optional: true
+      better-sqlite3:
+        optional: true
+      bun-types:
+        optional: true
+      expo-sqlite:
+        optional: true
+      knex:
+        optional: true
+      kysely:
+        optional: true
+      mysql2:
+        optional: true
+      pg:
+        optional: true
+      postgres:
+        optional: true
+      prisma:
+        optional: true
+      react:
+        optional: true
+      sql.js:
+        optional: true
+      sqlite3:
+        optional: true
 
   drizzle-orm@0.45.2:
     resolution: {integrity: sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==}
@@ -2662,6 +2771,10 @@ packages:
     resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
     engines: {node: '>=0.10.0'}
 
+  postgres@3.4.9:
+    resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
+    engines: {node: '>=12'}
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -3713,37 +3826,108 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@semantos/cell-ops@0.1.0': {}
+  '@semantos/calendar-ext@0.6.0(@bsv/sdk@2.0.13)(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(react@19.2.1)':
+    dependencies:
+      '@semantos/intent': 0.6.0(@bsv/sdk@2.0.13)
+      '@semantos/semantic-objects': 0.6.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(react@19.2.1)
+      '@semantos/semantos-sir': 0.6.0
+      drizzle-orm: 0.33.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(postgres@3.4.9)(react@19.2.1)
+      postgres: 3.4.9
+    optionalDependencies:
+      react: 19.2.1
+    transitivePeerDependencies:
+      - '@aws-sdk/client-rds-data'
+      - '@bsv/sdk'
+      - '@cloudflare/workers-types'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@neondatabase/serverless'
+      - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
+      - '@planetscale/database'
+      - '@prisma/client'
+      - '@tidbcloud/serverless'
+      - '@types/better-sqlite3'
+      - '@types/pg'
+      - '@types/react'
+      - '@types/sql.js'
+      - '@vercel/postgres'
+      - '@xata.io/client'
+      - better-sqlite3
+      - bun-types
+      - expo-sqlite
+      - knex
+      - kysely
+      - mysql2
+      - pg
+      - prisma
+      - sql.js
+      - sqlite3
 
-  '@semantos/core@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/cell-ops@0.6.0': {}
+
+  '@semantos/core@0.6.0(@bsv/sdk@2.0.13)':
     dependencies:
       '@bsv/sdk': 2.0.13
 
-  '@semantos/intent@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/intent@0.6.0(@bsv/sdk@2.0.13)':
     dependencies:
-      '@semantos/protocol-types': 0.1.0(@bsv/sdk@2.0.13)
-      '@semantos/semantos-sir': 0.1.0
+      '@semantos/protocol-types': 0.6.0(@bsv/sdk@2.0.13)
+      '@semantos/semantos-sir': 0.6.0
     transitivePeerDependencies:
       - '@bsv/sdk'
 
-  '@semantos/protocol-types@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/protocol-types@0.6.0(@bsv/sdk@2.0.13)':
     dependencies:
-      '@semantos/cell-ops': 0.1.0
-      '@semantos/core': 0.1.0(@bsv/sdk@2.0.13)
+      '@semantos/cell-ops': 0.6.0
+      '@semantos/core': 0.6.0(@bsv/sdk@2.0.13)
       cbor-x: 1.6.4
     transitivePeerDependencies:
       - '@bsv/sdk'
 
-  '@semantos/semantos-ir@0.1.0': {}
-
-  '@semantos/semantos-sir@0.1.0':
+  '@semantos/semantic-objects@0.6.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(react@19.2.1)':
     dependencies:
-      '@semantos/semantos-ir': 0.1.0
+      drizzle-orm: 0.33.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(postgres@3.4.9)(react@19.2.1)
+      postgres: 3.4.9
+    transitivePeerDependencies:
+      - '@aws-sdk/client-rds-data'
+      - '@cloudflare/workers-types'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@neondatabase/serverless'
+      - '@op-engineering/op-sqlite'
+      - '@opentelemetry/api'
+      - '@planetscale/database'
+      - '@prisma/client'
+      - '@tidbcloud/serverless'
+      - '@types/better-sqlite3'
+      - '@types/pg'
+      - '@types/react'
+      - '@types/sql.js'
+      - '@vercel/postgres'
+      - '@xata.io/client'
+      - better-sqlite3
+      - bun-types
+      - expo-sqlite
+      - knex
+      - kysely
+      - mysql2
+      - pg
+      - prisma
+      - react
+      - sql.js
+      - sqlite3
 
-  '@semantos/session-protocol@0.1.0(@bsv/sdk@2.0.13)':
+  '@semantos/semantos-ir@0.6.0': {}
+
+  '@semantos/semantos-sir@0.6.0':
+    dependencies:
+      '@semantos/semantos-ir': 0.6.0
+
+  '@semantos/session-protocol@0.6.0(@bsv/sdk@2.0.13)':
     dependencies:
       '@bsv/sdk': 2.0.13
-      '@semantos/protocol-types': 0.1.0(@bsv/sdk@2.0.13)
+      '@semantos/protocol-types': 0.6.0(@bsv/sdk@2.0.13)
 
   '@swc/helpers@0.5.15':
     dependencies:
@@ -4323,12 +4507,22 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.21.0
 
-  drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@upstash/redis@1.37.0)(pg@8.20.0):
+  drizzle-orm@0.33.0(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@types/react@19.2.14)(pg@8.20.0)(postgres@3.4.9)(react@19.2.1):
+    optionalDependencies:
+      '@electric-sql/pglite': 0.4.4
+      '@types/pg': 8.20.0
+      '@types/react': 19.2.14
+      pg: 8.20.0
+      postgres: 3.4.9
+      react: 19.2.1
+
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@types/pg@8.20.0)(@upstash/redis@1.37.0)(pg@8.20.0)(postgres@3.4.9):
     optionalDependencies:
       '@electric-sql/pglite': 0.4.4
       '@types/pg': 8.20.0
       '@upstash/redis': 1.37.0
       pg: 8.20.0
+      postgres: 3.4.9
 
   dunder-proto@1.0.1:
     dependencies:
@@ -5501,6 +5695,8 @@ snapshots:
   postgres-interval@1.2.0:
     dependencies:
       xtend: 4.0.2
+
+  postgres@3.4.9: {}
 
   prelude-ls@1.2.1: {}
 

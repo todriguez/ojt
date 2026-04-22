@@ -24,7 +24,9 @@
 import {
   createInMemoryLogger,
   createInMemoryPendingRegistry,
+  extractProposedSlot,
   handleMessage,
+  type CalendarGuard,
   type Classifier,
   type ClassifierInput,
   type ConversationPatchShape,
@@ -35,6 +37,7 @@ import {
   type IntentId,
   type PatchId,
   type PipelineDeps,
+  type ProposedSlot,
   type RatificationPatchShape,
   type CellId,
 } from "@semantos/intent";
@@ -53,7 +56,11 @@ export type HandleMessageIdentity =
   | { facetId: string; certId: string };
 
 /** OJT's public triage hint — the string chatService switches on. */
-export type OjtTriageHint = "PROPOSES" | "RATIFIES" | "NO_INTENT";
+export type OjtTriageHint =
+  | "PROPOSES"
+  | "RATIFIES"
+  | "NO_INTENT"
+  | "REJECT_CONFLICT";
 
 export interface OjtHandleMessageInput {
   /** The semantic object this turn belongs to (e.g. `job:<uuid>`). */
@@ -64,6 +71,21 @@ export interface OjtHandleMessageInput {
   message: string;
   /** Optional correlationId to thread through the turn. */
   correlationId?: string;
+  /**
+   * A5: optional CalendarGuard. When supplied AND the classifier
+   * produces an Intent whose `delta.proposedSlot` is populated,
+   * handleMessage will short-circuit on conflict. When omitted,
+   * legacy behaviour — the calendar step is skipped entirely.
+   */
+  calendarGuard?: CalendarGuard;
+  /**
+   * A5: optional override for the classifier so test seams (and any
+   * future jobId-aware time extractors) can plug in a custom Intent
+   * builder. Defaults to OJT's existing rules-only classifier, which
+   * never carries a `proposedSlot` — i.e. supplying just a guard with
+   * the default classifier is a no-op for guard purposes.
+   */
+  classifier?: Classifier;
 }
 
 export interface OjtHandleMessageResult {
@@ -92,23 +114,74 @@ const ojtClassifier: Classifier = {
     if (!body.trim()) {
       return { kind: "no_intent", reason: "empty_message" };
     }
-    const stubIntent: Intent = {
-      id: `intent:${input.conversationPatchId}` as IntentId,
-      correlationId: undefined,
-      summary: body.slice(0, 120),
-      // Casts are deliberate — OJT's classifier never produces a real
-      // Intent; these fields are present to satisfy the type but the
-      // no-op pipeline ignores them.
-      category: { lexicon: "jural", category: "obligation" } as never,
-      taxonomy: { path: ["ojt", "chat"] } as never,
-      action: "chat",
-      constraints: [],
-      confidence: 0.5,
-      source: input.source,
-    };
-    return { kind: "proposes", intent: stubIntent };
+    return { kind: "proposes", intent: buildStubIntent(input, body, null) };
   },
 };
+
+/**
+ * A5: build the OJT stub Intent. Optionally carries a `proposedSlot`
+ * delta — when supplied, handleMessage's CalendarGuard step will run.
+ * Used by `buildProposedSlotClassifier` below to inject a deterministic
+ * slot for tests and future LLM-driven flows.
+ */
+function buildStubIntent(
+  input: ClassifierInput,
+  body: string,
+  proposedSlot: ProposedSlot | null,
+): Intent {
+  const intent: Intent = {
+    id: `intent:${input.conversationPatchId}` as IntentId,
+    correlationId: undefined,
+    summary: body.slice(0, 120),
+    // Casts are deliberate — OJT's classifier never produces a real
+    // Intent; these fields are present to satisfy the type but the
+    // no-op pipeline ignores them.
+    category: { lexicon: "jural", category: "obligation" } as never,
+    taxonomy: { path: ["ojt", "chat"] } as never,
+    action: "chat",
+    constraints: [],
+    confidence: 0.5,
+    source: input.source,
+  };
+  if (proposedSlot) {
+    (intent as unknown as { delta?: Record<string, unknown> }).delta = {
+      proposedSlot,
+    };
+  }
+  return intent;
+}
+
+/**
+ * Build a classifier that always emits a Intent carrying the supplied
+ * `proposedSlot`. Wired by chatService when the chat turn carries an
+ * explicit slot (extracted by an upstream LLM classifier or — for the
+ * test gates — handed in directly via the pipeline). When the slot is
+ * null the classifier degrades to the default behaviour.
+ */
+export function buildProposedSlotClassifier(
+  proposedSlot: ProposedSlot | null,
+): Classifier {
+  if (!proposedSlot) return ojtClassifier;
+  return {
+    async classify(input: ClassifierInput) {
+      const body = typeof input.body === "string" ? input.body : "";
+      if (!body.trim()) {
+        return { kind: "no_intent", reason: "empty_message" };
+      }
+      return {
+        kind: "proposes",
+        intent: buildStubIntent(input, body, proposedSlot),
+      };
+    },
+  };
+}
+
+/**
+ * Re-export `extractProposedSlot` from @semantos/intent so callers can
+ * reach it without importing two paths. Used by chatService and by the
+ * G5 unit test.
+ */
+export { extractProposedSlot };
 
 /**
  * No-op PipelineDeps. OJT-P5 does NOT run the SIR/IR/cell-engine
@@ -168,6 +241,8 @@ function mapTriageHint(result: HandleMessageResult): OjtTriageHint {
       return "PROPOSES";
     case "ratified":
       return "RATIFIES";
+    case "reject_conflict":
+      return "REJECT_CONFLICT";
   }
 }
 
@@ -216,10 +291,11 @@ export async function runHandleMessage(
           },
           generatePatchId: () => randomId(),
         },
-        classifier: ojtClassifier,
+        classifier: input.classifier ?? ojtClassifier,
         pendingRegistry,
         pipeline: createNoopPipelineDeps(),
         logger,
+        calendarGuard: input.calendarGuard,
       },
     );
 

@@ -34,7 +34,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const b = body as { phone?: unknown; message?: unknown; jobId?: unknown };
+  const b = body as {
+    phone?: unknown;
+    message?: unknown;
+    jobId?: unknown;
+    proposedSlot?: unknown;
+    confirmBooking?: unknown;
+  };
   if (typeof b.phone !== "string" || b.phone.length === 0) {
     return NextResponse.json(
       { code: "bad_request", detail: "missing phone" },
@@ -54,12 +60,59 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // A5: optional proposedSlot — when present, the calendar guard runs
+  // before the LLM. The body shape is identical to ProposedSlot from
+  // @semantos/intent. We do minimal normalisation here (dates → Date)
+  // and leave full validation to extractProposedSlot downstream.
+  let proposedSlot: import("@semantos/intent").ProposedSlot | undefined;
+  if (b.proposedSlot !== undefined) {
+    if (typeof b.proposedSlot !== "object" || b.proposedSlot === null) {
+      return NextResponse.json(
+        { code: "bad_request", detail: "proposedSlot must be an object" },
+        { status: 400 },
+      );
+    }
+    const ps = b.proposedSlot as Record<string, unknown>;
+    if (
+      typeof ps.startAt !== "string" ||
+      typeof ps.endAt !== "string" ||
+      typeof ps.hatId !== "string" ||
+      typeof ps.subjectKind !== "string" ||
+      typeof ps.subjectId !== "string"
+    ) {
+      return NextResponse.json(
+        {
+          code: "bad_request",
+          detail:
+            "proposedSlot requires {startAt, endAt, hatId, subjectKind, subjectId}",
+        },
+        { status: 400 },
+      );
+    }
+    proposedSlot = {
+      startAt: new Date(ps.startAt),
+      endAt: new Date(ps.endAt),
+      hatId: ps.hatId,
+      subjectKind: ps.subjectKind,
+      subjectId: ps.subjectId,
+      proposedByCertId:
+        typeof ps.proposedByCertId === "string"
+          ? ps.proposedByCertId
+          : undefined,
+    };
+  }
+
+  const confirmBooking =
+    typeof b.confirmBooking === "boolean" ? b.confirmBooking : undefined;
+
   try {
     const identity = phoneToIdentity(b.phone, "tenant");
     const result = await handleTenantMessage({
       identity,
       message: b.message,
       jobId: b.jobId,
+      proposedSlot,
+      confirmBooking,
     });
     return NextResponse.json(result, { status: 200 });
   } catch (err) {

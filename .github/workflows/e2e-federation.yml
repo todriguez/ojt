@@ -1,0 +1,44 @@
+name: e2e-federation
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-22.04
+    env:
+      # When this secret is unset on a forked PR, G1 + G2 skip cleanly
+      # (per the test's HAS_API_KEY guard) and the remaining 11 gates
+      # still run end-to-end.
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@semantos'
+
+      - uses: oven-sh/setup-bun@v1
+
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build keeps Next + the route handlers honest before we hit
+      # them through Bun.serve in the test harness.
+      - run: pnpm build
+
+      - run: bun test tests/federation/ojt-rea-e2e.test.ts
+
+      # A5.2: calendar-guard gates run in their own bun invocation so
+      # the e2e test's port-bound harness doesn't collide with the
+      # per-suite singletons the calendar tests mutate.
+      - run: bun test tests/federation/calendar-guard.test.ts

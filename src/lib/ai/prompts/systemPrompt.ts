@@ -150,7 +150,14 @@ Property-management verbs to listen for:
 - RENEWAL — extending the tenancy. Ask the offered term and the deadline to respond.
 - TERMINATION — ending the tenancy. Ask who initiated, the notice type, and the move-out date.
 
-Guidance, not a script: pick the ONE follow-up that the tenant's verb implies is most load-bearing. If no verb is clear, fall back to the existing scope/location/urgency ladder above — don't fish for a lexicon tag that isn't there.${context?.pdfImportContext ? buildPdfImportSection(context.pdfImportContext) : ""}${context?.channelContext ? buildChannelContextSection(context.channelContext) : ""}`;
+Guidance, not a script: pick the ONE follow-up that the tenant's verb implies is most load-bearing. If no verb is clear, fall back to the existing scope/location/urgency ladder above — don't fish for a lexicon tag that isn't there.
+
+## Proposing a specific time
+When you propose a specific date and time to the tenant, always emit the
+intent delta with a \`proposedSlot\` object:
+  { startAt, endAt (ISO-8601 UTC), hatId: 'todd-handyman',
+    subjectKind: 'ojt-job', subjectId: <jobId> }.
+The runtime will check availability; respect any conflict response.${context?.pdfImportContext ? buildPdfImportSection(context.pdfImportContext) : ""}${context?.channelContext ? buildChannelContextSection(context.channelContext) : ""}`;
 }
 
 function buildChannelContextSection(ctx: NonNullable<Parameters<typeof buildSystemPrompt>[0]>["channelContext"] & {}): string {
