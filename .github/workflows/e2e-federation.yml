@@ -37,3 +37,8 @@ jobs:
       - run: pnpm build
 
       - run: bun test tests/federation/ojt-rea-e2e.test.ts
+
+      # A5.2: calendar-guard gates run in their own bun invocation so
+      # the e2e test's port-bound harness doesn't collide with the
+      # per-suite singletons the calendar tests mutate.
+      - run: bun test tests/federation/calendar-guard.test.ts
