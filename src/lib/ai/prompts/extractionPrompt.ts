@@ -10,6 +10,8 @@ import { buildCategoryAwareExtractionHints } from "../../domain/categories/categ
 import {
   JURAL_CATEGORIES,
   PM_CATEGORIES,
+  TRADES_CATEGORIES,
+  BUILDING_JOB_DIMENSIONS_CATEGORIES,
 } from "../../lexicons";
 
 export function buildExtractionPrompt(
@@ -141,6 +143,11 @@ EXTRACTION RULES:
    - First message or no prior job context → null
    - If unsure, use "same_job" — only use "different_job" when it's clearly a separate job
 
+   HARD RULES — these override anything else:
+   - If CURRENT KNOWN STATE shows estimatePresented=true OR conversationPhase="reviewing_estimate", jobPivot MUST be "same_job" UNLESS the customer literally names a different property/trade ("also at my mum's house", "different job — paint the bedrooms"). Pushback on the estimate ("seems cheap", "5 hrs?", "how do you do two coats in that time", "bit steep", "what's your rate") is ALWAYS "same_job".
+   - Questions about method, materials, time, or price are NEVER different_job — they're the customer probing the current scope. Use "same_job".
+   - Single-sentence challenges (under 15 words) referencing time/cost/method are "same_job", not pivots.
+
 ${buildCategoryAwareExtractionHints(currentState)}
 ${buildTaggedFactsSection()}
 Output ONLY the raw JSON object. No \`\`\`json fences. No markdown. No explanation.`;
@@ -164,6 +171,10 @@ function buildTaggedFactsSection(): string {
   // here without any OJT-side edit.
   const juralList = JURAL_CATEGORIES.map((c) => `  - ${c}: ${JURAL_DEFINITIONS[c] ?? "(see semantos-core Jural.lean)"}`).join("\n");
   const pmList = PM_CATEGORIES.map((c) => `  - ${c}: ${PM_DEFINITIONS[c] ?? "(see semantos-core PropertyManagement.lean)"}`).join("\n");
+  const tradesList = TRADES_CATEGORIES.map((c) => `  - ${c}: ${TRADES_DEFINITIONS[c] ?? "(handyman trade)"}`).join("\n");
+  const dimensionsList = BUILDING_JOB_DIMENSIONS_CATEGORIES.map(
+    (c) => `  - ${c}: ${DIMENSIONS_DEFINITIONS[c] ?? "(see buildingJobDimensions)"}`
+  ).join("\n");
 
   return `
 TAGGED FACTS (OJT-P6):
@@ -173,19 +184,39 @@ Alongside the extraction fields above, emit a \`taggedFacts\` array. Each elemen
 Shape:
   "taggedFacts": [
     {
-      "lexicon": "jural" | "property-management" | null,
+      "lexicon": "jural" | "property-management" | "trades" | "building-job-dimensions" | null,
       "category": <one of the categories for that lexicon> | null,
       "confidence": <number 0..1>,
-      "fact": <one-sentence canonicalised statement>,
+      "fact": <one-sentence canonicalised statement OR a controlled-vocab token for building-job-dimensions>,
       "source": <verbatim slice of the customer's utterance>
     }
   ]
+
+IMPORTANT for "building-job-dimensions": the \`fact\` field must be one of
+the controlled-vocabulary tokens below, not free text. The downstream parser
+rejects anything that isn't an exact match.
 
 Jural lexicon (legal / Hohfeldian relations):
 ${juralList}
 
 Property-management lexicon (rental-operations lifecycle):
 ${pmList}
+
+Trades lexicon (handyman building-trade classification — emit ONE per message naming the trade the job belongs to, matching the \`jobType\` field):
+${tradesList}
+
+Building-job-dimensions lexicon (attributes of the job that drive the estimator — emit facts for every signal present in the message, with \`fact\` set to the matching controlled-vocab token):
+${dimensionsList}
+
+Controlled vocab per dimension (\`fact\` MUST be one of these, lowercase):
+  - surface:          interior | exterior | mixed
+  - prep_level:       clean | scuff_sand | fill_patch | plaster_repair | strip_back
+  - room_count:       <integer as string — e.g. "1", "8">  (count rooms/areas listed)
+  - dwelling_type:    apartment | townhouse | house | commercial
+  - access:           ground | ladder | scaffold | difficult
+  - material_tier:    standard | mid | premium
+  - quantity_signal:  single | small_batch | large_batch
+  - work_type:        repair | replace | install | inspect
 
 Rules:
 - If a fact does not clearly fit either lexicon, set lexicon=null AND category=null. NEVER guess.
@@ -251,6 +282,44 @@ FEW-SHOT EXAMPLES:
 "I got a notice to vacate because they're selling the place"
   → { "lexicon": "property-management", "category": "termination", "confidence": 0.95, "fact": "Notice to vacate issued due to property sale", "source": "I got a notice to vacate because they're selling the place" }
 
+# Trades — doors_windows
+"I need three doors hung and one frame replaced"
+  → { "lexicon": "trades", "category": "doors_windows", "confidence": 0.95, "fact": "Three doors to hang and one frame to replace", "source": "three doors hung and one frame replaced" }
+
+# Trades — general (assembly)
+"can you put together a wardrobe and a couple of flatpack desks"
+  → { "lexicon": "trades", "category": "general", "confidence": 0.9, "fact": "Wardrobe assembly plus two flatpack desks", "source": "put together a wardrobe and a couple of flatpack desks" }
+
+# Trades — fencing
+"storm knocked down about 6m of side fence — paling fence with concreted posts"
+  → { "lexicon": "trades", "category": "fencing", "confidence": 0.95, "fact": "6m of paling side fence with concreted posts down after storm", "source": "6m of side fence — paling fence with concreted posts" }
+
+# Building-job-dimensions — surface + dwelling
+"whole apartment interior"
+  → { "lexicon": "building-job-dimensions", "category": "surface", "confidence": 0.95, "fact": "interior", "source": "whole apartment interior" }
+  → { "lexicon": "building-job-dimensions", "category": "dwelling_type", "confidence": 0.9, "fact": "apartment", "source": "whole apartment interior" }
+
+# Building-job-dimensions — room_count + quantity_signal
+"2 bedroom, two bath, wc, laundry, hallway, living area, kitchen"
+  → { "lexicon": "building-job-dimensions", "category": "room_count", "confidence": 0.95, "fact": "8", "source": "2 bedroom, two bath, wc, laundry, hallway, living area, kitchen" }
+  → { "lexicon": "building-job-dimensions", "category": "quantity_signal", "confidence": 0.9, "fact": "large_batch", "source": "2 bedroom, two bath, wc, laundry, hallway, living area, kitchen" }
+
+# Building-job-dimensions — prep_level (fill_patch)
+"lots of screw holes and holes where the door handles went through the wall"
+  → { "lexicon": "building-job-dimensions", "category": "prep_level", "confidence": 0.9, "fact": "fill_patch", "source": "lots of screw holes and holes where the door handles went through the wall" }
+
+# Building-job-dimensions — prep_level (plaster_repair, escalating)
+"yeah we need plaster repairs on everything"
+  → { "lexicon": "building-job-dimensions", "category": "prep_level", "confidence": 0.95, "fact": "plaster_repair", "source": "we need plaster repairs on everything" }
+
+# Building-job-dimensions — access
+"it's a two-storey job so you'll need scaffolding up there"
+  → { "lexicon": "building-job-dimensions", "category": "access", "confidence": 0.9, "fact": "scaffold", "source": "two-storey job so you'll need scaffolding up there" }
+
+# Building-job-dimensions — work_type (repair vs replace)
+"one of the palings has snapped, needs replacing"
+  → { "lexicon": "building-job-dimensions", "category": "work_type", "confidence": 0.9, "fact": "replace", "source": "needs replacing" }
+
 # Untagged (no fit — set both null)
 "yeah cheers thanks for sorting that"
   → { "lexicon": null, "category": null, "confidence": 0.9, "fact": "Tenant acknowledgement of assistance", "source": "cheers thanks for sorting that" }
@@ -282,4 +351,35 @@ const PM_DEFINITIONS: Record<string, string> = {
   violation: "alleged or actual breach of the lease by any party",
   renewal: "extending or renewing the tenancy past the current term",
   termination: "ending the tenancy — notices to vacate, break-lease, sale, eviction",
+};
+
+/** Definitions for building-job-dimensions. Keys line up with
+ *  BuildingJobDimensionsLexicon.categories — each is a dimension whose
+ *  value goes in the TaggedFact.fact field as a controlled-vocab token. */
+const DIMENSIONS_DEFINITIONS: Record<string, string> = {
+  surface:         "interior vs exterior vs mixed — drives painting/cleaning bumps",
+  prep_level:      "how much surface prep — clean | scuff_sand | fill_patch | plaster_repair | strip_back",
+  room_count:      "integer count of rooms/areas the customer listed (emit as a string)",
+  dwelling_type:   "apartment | townhouse | house | commercial — affects access + logistics",
+  access:          "ground | ladder | scaffold | difficult — physical access to the work area",
+  material_tier:   "standard | mid | premium — quality tier of materials",
+  quantity_signal: "single | small_batch | large_batch — coarse count bucket",
+  work_type:       "repair | replace | install | inspect — what's actually being done",
+};
+
+/** One-line definitions for the Trades categories. Keys line up with
+ *  TradesLexicon.categories. */
+const TRADES_DEFINITIONS: Record<string, string> = {
+  carpentry:     "framing, cabinetry, decks, shelves, built-ins, timber work",
+  plumbing:      "taps, drains, hot water, basin, pipes, toilets",
+  electrical:    "power points, switches, light fittings, circuits, rewires",
+  painting:      "interior/exterior coats, patching, feature walls, stain",
+  general:       "assembly, flatpack, wardrobes, bracket work, hang picture / TV mount (catch-all for non-trade-specific handy jobs)",
+  fencing:       "panels, posts, gates, palings, boundary fences",
+  tiling:        "floor/wall tile repair, grout, splashbacks, bathroom tiling",
+  roofing:       "leaks, gutters, ridge caps, tile replacement, whirlybirds",
+  doors_windows: "door hanging, adjusting, frames, locks, window sashes, sliding units",
+  gardening:     "mow, hedge, mulch, retaining walls, landscaping",
+  cleaning:      "pressure wash, house wash, gutter clean, end-of-lease",
+  other:         "doesn't fit any of the above — use rarely",
 };

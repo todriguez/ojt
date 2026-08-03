@@ -8,7 +8,7 @@
  * Todd's effective rate: ~$70–90/hr but we never show hourly rate.
  */
 
-import type { EffortBand } from "./effortBandService";
+import { firstPassBand, type EffortBand } from "./effortBandService";
 
 export interface RomEstimate {
   effortBand: EffortBand;
@@ -83,11 +83,41 @@ interface EstimateInput {
 
 /**
  * Generate a ROM estimate from effort band + job context.
+ *
+ * When the band is "unknown" but jobType is known, we fall back to a
+ * first-pass bracket (wider range, explicit "rough first pass" framing)
+ * rather than refusing — the deterministic framework prefers a real
+ * number over interrogation. Callers tighten the range as scope detail
+ * lands on subsequent turns. If even jobType is missing, we still return
+ * the empty estimate so the chat layer asks the one question that
+ * actually matters: what trade is this?
  */
 export function generateRomEstimate(input: EstimateInput): RomEstimate {
   const { effortBand, jobType } = input;
 
   if (effortBand === "unknown") {
+    const fpBand = firstPassBand(jobType);
+    if (fpBand) {
+      const fpRange = BAND_RANGES[fpBand];
+      // Widen the range by ~30% on either side to make the first-pass
+      // bracket honestly preliminary — encourages the customer to fill
+      // in scope so we can tighten it.
+      const widenedMin = Math.round(fpRange.costMin * 0.85);
+      const widenedMax = Math.round(fpRange.costMax * 1.3);
+      const jt = jobType ?? "general";
+      const matNote = MATERIAL_HINTS[jt] || "Plus any materials needed";
+      return {
+        effortBand: fpBand,
+        costMin: widenedMin,
+        costMax: widenedMax,
+        labourOnly: jt !== "cleaning",
+        materialsNote: matNote,
+        hoursMin: fpRange.hoursMin,
+        hoursMax: fpRange.hoursMax,
+        confidenceNote:
+          "First-pass bracket — wide range until we lock in the specifics",
+      };
+    }
     return {
       effortBand,
       costMin: 0,

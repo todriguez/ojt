@@ -14,6 +14,14 @@ export type ConversationAction =
   | { type: "continue" }
   | { type: "present_estimate"; wording: string; expectationCheck: string }
   | { type: "ask_contact" }
+  | {
+      /** Post-ROM: customer's ballpark-accepted; get contact + frame the
+       *  next step as "Todd comes out for a free quote", not "we've
+       *  booked the work". Gated by quote-worthiness so we don't offer
+       *  a site visit for jobs that shouldn't get one. */
+      type: "offer_free_quote_visit";
+      reason: string;
+    }
   | { type: "summarise_and_close"; summary: string }
   | { type: "needs_more_info"; hint: string }
   | { type: "not_worth_pursuing"; reason: string }
@@ -75,7 +83,41 @@ export function evaluateConversationState(state: AccumulatedJobState): Conversat
     return { type: "continue" };
   }
 
-  // ── Need contact details ──
+  // ── Post-ROM flow: offer a free site quote ──
+  // When the customer has acknowledged the ROM in a way that suggests
+  // they're interested (accepted / tentative), and the job looks worth
+  // Todd's time to visit, pivot explicitly to "Todd would come out for a
+  // free quote" rather than silently asking for contact details as if
+  // we've already agreed to the job. This is the whole pre-qualification
+  // mechanic: the ROM gates the site-visit, the site-visit produces the
+  // real quote.
+  if (
+    state.estimatePresented &&
+    state.estimateAcknowledged &&
+    (state.estimateAckStatus === "accepted" || state.estimateAckStatus === "tentative") &&
+    !state.customerPhone &&
+    !state.customerEmail
+  ) {
+    // Worthiness guard — if the job is clearly not worth a site visit
+    // (low worthiness score, very low fit), we fall through to
+    // not_worth_pursuing below rather than inviting Todd out.
+    const worthy =
+      (state.quoteWorthinessScore ?? 50) >= 35 &&
+      (state.customerFitScore ?? 50) >= 25;
+    if (worthy) {
+      return {
+        type: "offer_free_quote_visit",
+        reason: "ROM accepted/tentative + job passes worthiness threshold — invite Todd for a free quote",
+      };
+    }
+    // Low-worthiness with accepted ROM is a polite decline path.
+    return {
+      type: "not_worth_pursuing",
+      reason: "ROM accepted but worthiness/fit scores too low to justify a site visit.",
+    };
+  }
+
+  // ── Need contact details (fallback path for non-accepted states) ──
   if (
     state.estimatePresented &&
     state.estimateAcknowledged &&
@@ -113,8 +155,34 @@ export function evaluateConversationState(state: AccumulatedJobState): Conversat
     });
 
     if (effortResult.band === "unknown") {
-      // Only ask for more detail if scope clarity is truly low
-      if (state.scopeClarity < 30) {
+      // If we know the trade, present the first-pass bracket instead of
+      // grilling the customer. generateRomEstimate now widens the range
+      // and labels it "first-pass bracket" — deterministic, gentle, and
+      // tightens on the next turn as scope clarifies.
+      if (state.jobType) {
+        const romEstimate = generateRomEstimate({
+          effortBand: "unknown",
+          jobType: state.jobType,
+          materials: state.materials,
+          quantity: state.quantity,
+        });
+        if (romEstimate.costMax > 0) {
+          const wording = generateEstimateWording({
+            estimate: romEstimate,
+            jobType: state.jobType,
+            scopeDescription: state.scopeDescription,
+            quantity: state.quantity,
+            materials: state.materials,
+          });
+          return {
+            type: "present_estimate",
+            wording: wording.customerFacing,
+            expectationCheck: wording.expectationCheck,
+          };
+        }
+      }
+      // Only ask for more detail if we don't even know the trade
+      if (state.scopeClarity < 30 || !state.jobType) {
         return {
           type: "needs_more_info",
           hint: "I've got a rough idea of the job but need a bit more detail on the scope to give you a ballpark — can you tell me more about what's involved?",
@@ -262,22 +330,25 @@ function buildSummary(state: AccumulatedJobState): string {
 export function generateSystemInjection(action: ConversationAction): string | null {
   switch (action.type) {
     case "present_estimate":
-      return `[SYSTEM: Present this ROM estimate to the customer naturally. Use these words but adjust to flow with the conversation.]\n\nEstimate: ${action.wording}\n\nThen ask: ${action.expectationCheck}`;
+      return `[SYSTEM: Present this ROUGH ORDER OF MAGNITUDE to the customer. The words below are already framed as ROM-not-quote — use them or lightly rephrase. Do NOT invent any number; the range below is the only range you're allowed to quote this turn. After the range, ask the expectation-check question so the customer self-qualifies on the ballpark.]\n\nROM: ${action.wording}\n\nThen ask: ${action.expectationCheck}`;
 
     case "ask_contact":
-      return `[SYSTEM: The customer has acknowledged the estimate. Now naturally ask for their contact details so Todd can follow up. Don't make it feel like a form — keep it conversational.]`;
+      return `[SYSTEM: The customer has acknowledged the ROM. The next step is a free on-site quote — not the job itself. Ask for contact details naturally, framed as "so Todd can get in touch to arrange a free on-site quote". Don't make it sound like we've booked the work.]`;
+
+    case "offer_free_quote_visit":
+      return `[SYSTEM: The customer's accepted the ROM as a workable ballpark. Todd's prepared to come out for a free on-site quote to turn that ballpark into a real number. Ask naturally for their name + phone/email so he can line up a time. Make clear the on-site quote is free and doesn't commit them to anything. Reason logged: ${action.reason}]`;
 
     case "summarise_and_close":
-      return `[SYSTEM: Intake is complete. Summarise what's been logged and let the customer know Todd will review and decide next steps. Keep it brief and warm.]\n\nSummary:\n${action.summary}`;
+      return `[SYSTEM: Intake is complete. Summarise what's been logged and let the customer know Todd will review and reach out about a free on-site quote. Keep it brief and warm — no promises about dates, just that he'll be in touch.]\n\nSummary:\n${action.summary}`;
 
     case "needs_more_info":
       return `[SYSTEM: ${action.hint}]`;
 
     case "not_worth_pursuing":
-      return `[SYSTEM: This lead is unlikely to convert. Wrap up politely — thank them for reaching out, say the job might not be the best fit for our schedule right now, and wish them well finding someone.]`;
+      return `[SYSTEM: This lead isn't a strong fit for a free on-site quote visit. Wrap up politely — thank them for reaching out, say the job might not be the best fit for Todd's schedule right now, and wish them well finding someone. Do NOT offer a site visit. Do NOT ask for contact details.]`;
 
     case "needs_site_visit":
-      return `[SYSTEM: This job needs a site visit before pricing. Let the customer know that given what's described, Todd would want to take a quick look before committing to a price. Ask if they'd be happy for Todd to pop round for a look.]`;
+      return `[SYSTEM: This job needs a site visit before any ballpark — too many unknowns to quote even a ROM honestly. Let the customer know that given what's described, Todd would want to take a quick look before giving even a rough range. Ask if they'd be happy for him to pop round (this visit is free).]`;
 
     case "continue":
       return null;

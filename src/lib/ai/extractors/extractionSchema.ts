@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createHash } from "crypto";
+import { TradesLexicon } from "../../lexicons/trades";
 
 /**
  * Schema for what the LLM extracts from each customer message.
@@ -36,11 +37,9 @@ function lenientEnumWithDefault<T extends [string, ...string[]]>(values: T, defa
     });
 }
 
-export const JOB_TYPE_VALUES = [
-  "carpentry", "plumbing", "electrical", "painting", "general",
-  "fencing", "tiling", "roofing", "doors_windows", "gardening",
-  "cleaning", "other",
-] as const;
+// Sourced from the canonical TradesLexicon — never inline these strings.
+// Adding a trade means extending the lexicon, then this re-derives.
+export const JOB_TYPE_VALUES = TradesLexicon.categories;
 
 export const messageExtractionSchema = z.object({
   // Customer details (extracted if mentioned)
@@ -199,6 +198,13 @@ export const accumulatedJobStateSchema = z.object({
     location: z.string().nullable().default(null),
     repairOrReplace: z.string().nullable().default(null),
   })).default([]),
+
+  // SPP estimator — typed state + last-emitted RomInstrument. The shape
+  // is validated by sppEstimator; here we keep it permissive so the whole
+  // merged state still round-trips through Zod without schema duplication.
+  // Source of truth for these payloads is the sppEstimator module.
+  estimatorState: z.unknown().nullable().default(null),
+  romInstrument: z.unknown().nullable().default(null),
 });
 
 export type AccumulatedJobState = z.infer<typeof accumulatedJobStateSchema>;
