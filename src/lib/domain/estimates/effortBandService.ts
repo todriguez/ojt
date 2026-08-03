@@ -87,11 +87,12 @@ const JOB_TYPE_RULES: Record<string, BandRule[]> = {
     { band: "full_day", keywords: ["rewire", "switchboard", "full house"] },
   ],
   general: [
-    { band: "quick", keywords: ["hang", "picture", "curtain rod"] },
-    { band: "short", keywords: ["assemble", "flatpack", "ikea", "mount tv"] },
-    { band: "quarter_day", keywords: ["odd jobs", "few things", "handyman list"] },
-    { band: "half_day", keywords: ["several", "multiple", "list of"] },
-    { band: "full_day", keywords: ["full day", "big list", "many jobs"] },
+    { band: "quick", keywords: ["hang", "picture", "curtain rod", "towel rail", "hook"] },
+    { band: "short", keywords: ["mount tv", "shelf bracket", "single flatpack", "small flatpack"] },
+    { band: "quarter_day", keywords: ["assemble", "flatpack", "ikea", "wardrobe assembly", "bedside", "small wardrobe", "small built-in"] },
+    { band: "half_day", keywords: ["wardrobe", "tallboy", "bookshelf", "desk", "bed frame", "odd jobs", "few things", "handyman list"] },
+    { band: "full_day", keywords: ["large wardrobe", "walk-in", "built-in wardrobe", "kitchen flatpack", "several", "multiple", "list of"] },
+    { band: "multi_day", keywords: ["full day", "big list", "many jobs", "whole house assembly", "whole apartment"] },
   ],
   gardening: [
     { band: "short", keywords: ["mow", "edge", "small garden"] },
@@ -270,4 +271,39 @@ export function inferEffortBand(signals: EffortSignals): {
     : `Matched "${matchedKeyword}" → ${finalBand}`;
 
   return { band: finalBand, reason };
+}
+
+/**
+ * First-pass brackets per job type — wide-but-honest ranges used when we
+ * have a known jobType but not enough scope detail to land on a specific
+ * effort band. Returned as a fixed band + an explicit "rough first pass"
+ * marker so the wording layer frames it as preliminary rather than firm.
+ *
+ * The point of this table is to give the user a real number quickly
+ * instead of grilling them for more detail. The deterministic estimator
+ * tightens the range as scope clarifies on subsequent turns.
+ */
+const FIRST_PASS_BAND: Record<string, EffortBand> = {
+  doors_windows: "full_day",
+  carpentry: "half_day",
+  fencing: "full_day",
+  painting: "full_day",
+  plumbing: "quarter_day",
+  tiling: "half_day",
+  roofing: "half_day",
+  electrical: "quarter_day",
+  general: "quarter_day",
+  gardening: "quarter_day",
+  cleaning: "quarter_day",
+  other: "half_day",
+};
+
+/**
+ * Return a first-pass band for a job type, or null if we don't even know
+ * the trade. Caller uses this when inferEffortBand returns "unknown" but
+ * a jobType is known — preferable to silence or fabricated pricing.
+ */
+export function firstPassBand(jobType: string | null): EffortBand | null {
+  if (!jobType) return null;
+  return FIRST_PASS_BAND[jobType] ?? null;
 }

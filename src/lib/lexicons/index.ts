@@ -17,13 +17,23 @@ import {
   JuralLexicon,
   PropertyManagementLexicon,
 } from "@semantos/semantos-sir";
+import { TradesLexicon } from "./trades";
+import { BuildingJobDimensionsLexicon } from "./buildingJobDimensions";
 
 /** Readonly arrays sourced from the canonical lexicons. */
 export const JURAL_CATEGORIES = JuralLexicon.categories;
 export const PM_CATEGORIES = PropertyManagementLexicon.categories;
+export const TRADES_CATEGORIES = TradesLexicon.categories;
+export const BUILDING_JOB_DIMENSIONS_CATEGORIES = BuildingJobDimensionsLexicon.categories;
 
-/** The two lexicon names OJT understands. */
-export type LexiconName = "jural" | "property-management";
+/** The lexicon names OJT understands. `trades` and `building-job-dimensions`
+ *  are OJT-local pending lift to semantos-sir; see the per-file migration
+ *  notes. */
+export type LexiconName =
+  | "jural"
+  | "property-management"
+  | "trades"
+  | "building-job-dimensions";
 
 /** A lexicon-tagged fact produced by the extraction LLM. */
 export interface TaggedFact {
@@ -47,4 +57,30 @@ export interface TaggedFact {
 export const LEXICON_REGISTRY: Record<LexiconName, readonly string[]> = {
   jural: JURAL_CATEGORIES,
   "property-management": PM_CATEGORIES,
+  trades: TRADES_CATEGORIES,
+  "building-job-dimensions": BUILDING_JOB_DIMENSIONS_CATEGORIES,
 };
+
+export { TradesLexicon, isTradeCategory } from "./trades";
+export type { TradeCategory } from "./trades";
+export {
+  BuildingJobDimensionsLexicon,
+  isBuildingJobDimensionsCategory,
+  SURFACE_VALUES,
+  PREP_LEVEL_VALUES,
+  DWELLING_TYPE_VALUES,
+  ACCESS_VALUES,
+  MATERIAL_TIER_VALUES,
+  QUANTITY_SIGNAL_VALUES,
+  WORK_TYPE_VALUES,
+} from "./buildingJobDimensions";
+export type {
+  BuildingJobDimensionsCategory,
+  SurfaceValue,
+  PrepLevelValue,
+  DwellingTypeValue,
+  AccessValue,
+  MaterialTierValue,
+  QuantitySignalValue,
+  WorkTypeValue,
+} from "./buildingJobDimensions";
